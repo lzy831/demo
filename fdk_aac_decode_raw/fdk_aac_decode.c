@@ -178,6 +178,7 @@ int main()
     free(pcm_buffer);
   }
   release_aac_raw_buf_list();
+  aacDecoder_Close(decoder);
 
   return 0;
 }
