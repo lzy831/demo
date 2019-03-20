@@ -60,6 +60,12 @@ void prepare_aac_raw_buf_list()
 
     // printf("process buf idx: %d ok\n", raw_buf_total_cout);
     raw_buf_total_cout++;
+
+    if(raw_buf_total_cout >= RAW_DATA_BUF_MAX_SIZE-1)
+    {
+      printf("already prepared max aac raw buffer we can support\n");
+      break;
+    }
   }
 }
 
