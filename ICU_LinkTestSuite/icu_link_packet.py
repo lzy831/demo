@@ -3,8 +3,8 @@
 
 import struct
 from collections import namedtuple
-# from bitset import BitSet
 from icu_debug import *
+# from icu_serial import *
 
 BIT_SYN = 7
 BIT_ACK = 6
@@ -28,7 +28,7 @@ LinkPacketHeaderTupleType = namedtuple(
 LinkSynPayloadLength = 12
 LinkSynPayloadFormat = '>BBHHHBBH'
 LinkSynPayloadWithoutCheckssumFormat = '>BBHHHBB'
-LinkSynPayloadField = 'LinkVersion, MaxNumOfOutStdPkts, MaxRecvPktLen, RetransTimeout, CumAckTimeout, MaxCumOfRetrans, MaxCumAck, PayloadChecksum'
+LinkSynPayloadField = 'LinkVersion, MaxNumOfOutStdPkts, MaxRecvPktLen, RetransTimeout, CumAckTimeout, MaxNumOfRetrans, MaxCumAck, PayloadChecksum'
 LinkSynPayloadTupleType = namedtuple(
     'LinkSynPayloadTuple', LinkSynPayloadField)
 
@@ -43,6 +43,7 @@ Valid_ACK_Header_Param = dict(
 
 
 MCU_Default_SYN_Param = dict()
+MCU_Negotiated_SYN_Param = dict()
 
 
 def is_valid_packet_header(header_data: bytes):
@@ -52,7 +53,7 @@ def is_valid_packet_header(header_data: bytes):
 def is_valid_syn_packet(header: LinkPacketHeaderTupleType):
     # skdebug('header.ControlByte:', bin(header.ControlByte))
     # skdebug('1<<BIT_SYN:', bin(1 << BIT_SYN))
-    return header.ControlByte == 1 << BIT_SYN
+    return header.ControlByte == 1 << BIT_SYN or header.ControlByte == (1 << BIT_SYN | 1 << BIT_ACK)
 
 
 def is_reset_packet(packet: bytes):
@@ -67,12 +68,14 @@ def get_syn_param(payload_bytes: bytes):
     skdebug('payload_bytes len:', len(payload_bytes))
     payload = LinkSynPayloadTupleType._make(
         struct.unpack(LinkSynPayloadFormat, payload_bytes))
-    syn_param = dict(MaxNumOfOutStdPkts=payload.MaxNumOfOutStdPkts,
-                     MaxRecvPktLen=payload.MaxRecvPktLen,
-                     RetransTimeout=payload.RetransTimeout,
-                     CumAckTimeout=payload.CumAckTimeout,
-                     MaxCumOfRetrans=payload.MaxCumOfRetrans,
-                     MaxCumAck=payload.MaxCumAck)
+    syn_param = dict(
+        LinkVersion=payload.LinkVersion,
+        MaxNumOfOutStdPkts=payload.MaxNumOfOutStdPkts,
+        MaxRecvPktLen=payload.MaxRecvPktLen,
+        RetransTimeout=payload.RetransTimeout,
+        CumAckTimeout=payload.CumAckTimeout,
+        MaxNumOfRetrans=payload.MaxNumOfRetrans,
+        MaxCumAck=payload.MaxCumAck)
     return syn_param
 
 
@@ -90,10 +93,13 @@ def get_packet_param(packet: bytes):
                         PacketSeqNum=header.PacketSeqNum,
                         PacketAckNum=header.PacketAckNum,
                         SessionId=header.SessionId)
+    skdebug(header_param)
     if is_valid_syn_packet(header):
+        # skdebug('is valid syn packet')
         syn_payload_param = get_syn_param(packet[10:])
         return {**header_param, **syn_payload_param}
     else:
+        skdebug('is not valid syn packet')
         return header_param
 
 
@@ -146,15 +152,56 @@ def generate_syn_payload_with_param(**param):
     MaxRecvPktLen = int(param.get('MaxRecvPktLen', 0))
     RetransTimeout = int(param.get('RetransTimeout', 0))
     CumAckTimeout = int(param.get('CumAckTimeout', 0))
-    MaxCumOfRetrans = int(param.get('MaxCumOfRetrans', 0))
+    MaxNumOfRetrans = int(param.get('MaxNumOfRetrans', 0))
     MaxCumAck = int(param.get('MaxCumAck', 0))
 
     # calc payload checksum
     data_without_checksum = struct.pack(LinkSynPayloadWithoutCheckssumFormat, LinkVersion, MaxNumOfOutStdPkts,
-                                        MaxRecvPktLen, RetransTimeout, CumAckTimeout, MaxCumOfRetrans, MaxCumAck)
+                                        MaxRecvPktLen, RetransTimeout, CumAckTimeout, MaxNumOfRetrans, MaxCumAck)
     checksum = clac_checksum(data_without_checksum)
     PayloadChecksum = int(param.get('PayloadChecksum', checksum))
-    return struct.pack(LinkSynPayloadFormat, LinkVersion, MaxNumOfOutStdPkts, MaxRecvPktLen, RetransTimeout, CumAckTimeout, MaxCumOfRetrans, MaxCumAck, PayloadChecksum)
+    return struct.pack(
+        LinkSynPayloadFormat, LinkVersion, MaxNumOfOutStdPkts, MaxRecvPktLen, RetransTimeout, CumAckTimeout,
+        MaxNumOfRetrans, MaxCumAck, PayloadChecksum)
+
+
+def generate_standard_SYN_ACK_packet(**param):
+    global MCU_Default_SYN_Param
+    syn_ack_param = dict()
+    syn_ack_param['MaxNumOfOutStdPkts'] = int(MCU_Default_SYN_Param.get('MaxNumOfOutStdPkts', 4))
+    syn_ack_param['MaxRecvPktLen'] = int(MCU_Default_SYN_Param.get('MaxRecvPktLen', 256))
+    syn_ack_param['RetransTimeout'] = int(MCU_Default_SYN_Param.get('RetransTimeout', 400))
+    syn_ack_param['CumAckTimeout'] = int(param.get('CumAckTimeout', 22))
+    syn_ack_param['MaxNumOfRetrans'] = int(param.get('MaxNumOfRetrans', 10))
+    syn_ack_param['MaxCumAck'] = int(param.get('MaxCumAck', 10))
+    payload = generate_syn_payload_with_param(**syn_ack_param)
+    pkt_len = LinkSynPayloadLength+LinkPacketHeaderLength
+    header_param = dict(SYN=1, ACK=1, PacketLength=pkt_len)
+    header_param['PacketSeqNum'] = int(param.get('PacketSeqNum', 0))
+    header_param['PacketAckNum'] = int(param.get('PacketAckNum', 0))
+    header = generate_header_with_param(**header_param)
+    packet = header+payload
+    return packet
+
+
+def generate_negotiated_SYN_ACK_packet(**param):
+    global MCU_Default_SYN_Param
+    syn_ack_param = dict()
+    syn_ack_param['MaxNumOfOutStdPkts'] = int(MCU_Default_SYN_Param.get('MaxNumOfOutStdPkts', 4))
+    syn_ack_param['MaxRecvPktLen'] = int(MCU_Default_SYN_Param.get('MaxRecvPktLen', 256))
+    syn_ack_param['RetransTimeout'] = int(MCU_Default_SYN_Param.get('RetransTimeout', 400))
+    syn_ack_param['CumAckTimeout'] = int(param.get('CumAckTimeout', 22))
+    # 修改可协商参数MaxNumOfRetrans值用以到达再次协商的目的
+    # syn_ack_param['MaxNumOfRetrans'] = int(param.get('MaxNumOfRetrans', 10)) # + int(2)
+    syn_ack_param['MaxCumAck'] = int(param.get('MaxCumAck', 10))
+    payload = generate_syn_payload_with_param(**syn_ack_param)
+    pkt_len = LinkSynPayloadLength+LinkPacketHeaderLength
+    header_param = dict(SYN=1, ACK=1, PacketLength=pkt_len)
+    header_param['PacketSeqNum'] = int(param.get('PacketSeqNum', 0))
+    header_param['PacketAckNum'] = int(param.get('PacketSeqNum', 0))
+    header = generate_header_with_param(**header_param)
+    packet = header+payload
+    return packet
 
 
 def generate_nak_payload_with_param(**param):
@@ -223,4 +270,6 @@ def generate_header_with_param(**param):
     checksum = clac_checksum(data_without_checksum)
     HeaderChecksum = param.get('HeaderChecksum', checksum)
 
-    return struct.pack(LinkPacketHeaderFormat, StartOfPacket, PacketLength, ControlByte, PacketSeqNum, PacketAckNum, SessionId, HeaderChecksum)
+    return struct.pack(
+        LinkPacketHeaderFormat, StartOfPacket, PacketLength, ControlByte, PacketSeqNum, PacketAckNum, SessionId,
+        HeaderChecksum)

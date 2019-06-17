@@ -27,6 +27,7 @@ def send_func():
     global SendPSN
     global SendQueue
     global RecvQueue
+    global LINK_PKT_MAX_PSN
     skdebug('send_func begin')
     while True:
         if SendThreadStopFlag:
@@ -63,6 +64,7 @@ def send_func():
 def recv_func():
     global SerialPort
     global RecvQueue
+    global LinkPacketSYNLength
     skdebug('recv_func begin')
     while True:
         skdebug('recv_func loop')
@@ -76,6 +78,8 @@ def recv_func():
 
         try:
             skdebug('recv_func try to read')
+            skdebug(LinkPacketSYNLength)
+            
 
             sync_bytes = SerialPort.read(LinkPacketSYNLength)
             if len(sync_bytes) != 2:
@@ -87,8 +91,7 @@ def recv_func():
 
             header_body = SerialPort.read(
                 LinkPacketHeaderLength-LinkPacketSYNLength)
-            assert len(header_body) == LinkPacketHeaderLength - \
-                LinkPacketSYNLength
+            assert len(header_body) == LinkPacketHeaderLength - LinkPacketSYNLength
             header_data = sync_bytes+header_body
 
             if not is_valid_packet_header(header_data):
