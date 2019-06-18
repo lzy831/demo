@@ -44,7 +44,6 @@ def send_func():
                 SerialPort.write(packet)
                 SendPSN = SendPSN+1 % LINK_PKT_MAX_PSN
 
-                
                 # if is_reset_packet(packet):
                 #     skdebug('send a reset packet, RecvQueue count:',
                 #             RecvQueue.qsize())
@@ -52,7 +51,7 @@ def send_func():
 
                 # 试着每法送一个包就清空当前的接收队列
                 flush_recv_queue()
-                
+
         except serial.SerialException:
             # skdebug('send_func serial close')
             return
@@ -79,7 +78,6 @@ def recv_func():
         try:
             skdebug('recv_func try to read')
             skdebug(LinkPacketSYNLength)
-            
 
             sync_bytes = SerialPort.read(LinkPacketSYNLength)
             if len(sync_bytes) != 2:
@@ -91,7 +89,8 @@ def recv_func():
 
             header_body = SerialPort.read(
                 LinkPacketHeaderLength-LinkPacketSYNLength)
-            assert len(header_body) == LinkPacketHeaderLength - LinkPacketSYNLength
+            assert len(header_body) == LinkPacketHeaderLength - \
+                LinkPacketSYNLength
             header_data = sync_bytes+header_body
 
             if not is_valid_packet_header(header_data):

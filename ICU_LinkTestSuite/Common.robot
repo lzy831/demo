@@ -158,7 +158,7 @@ Hold On A While
 
 Receive SYN In Time
     [Arguments]             ${timeout}
-    &{SYN Param} =          Library Receive SYN In Time     ${timeout}
+    &{SYN Param} =          Library_Receive_SYN_In_Time     ${timeout}
     Return From Keyword     &{SYN Param}
 
 Receive SYN ACK In Time

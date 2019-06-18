@@ -2,7 +2,7 @@
 Resource    ..\\Common.robot
 
 *** Test Cases ***
-握手_正常流程_协商二次_测试两次协商正常情况
+握手_正常流程_协商二次_测试两次协商不成功的情况
     Send RST To Soc
     &{SYN Param}=                   Receive SYN In Time                     ${Default Timeout In Seconds}
     &{Negotiated Param}=            Send Negotiated SYN ACK To SoC          &{SYN Param}

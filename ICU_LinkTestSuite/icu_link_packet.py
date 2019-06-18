@@ -50,7 +50,7 @@ def is_valid_packet_header(header_data: bytes):
     return True
 
 
-def is_valid_syn_packet(header: LinkPacketHeaderTupleType):
+def is_valid_syn_or_syn_ack_packet(header: LinkPacketHeaderTupleType):
     # skdebug('header.ControlByte:', bin(header.ControlByte))
     # skdebug('1<<BIT_SYN:', bin(1 << BIT_SYN))
     return header.ControlByte == 1 << BIT_SYN or header.ControlByte == (1 << BIT_SYN | 1 << BIT_ACK)
@@ -94,7 +94,7 @@ def get_packet_param(packet: bytes):
                         PacketAckNum=header.PacketAckNum,
                         SessionId=header.SessionId)
     skdebug(header_param)
-    if is_valid_syn_packet(header):
+    if is_valid_syn_or_syn_ack_packet(header):
         # skdebug('is valid syn packet')
         syn_payload_param = get_syn_param(packet[10:])
         return {**header_param, **syn_payload_param}
