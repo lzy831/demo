@@ -6,6 +6,70 @@ from collections import namedtuple
 from icu_debug import *
 # from icu_serial import *
 
+
+class ControlByte(object):
+    BIT_SYN = 7
+    BIT_ACK = 6
+    BIT_EAK = 5
+    BIT_RST = 4
+    BIT_NAK = 3
+    BIT_RES2 = 2
+    BIT_RES1 = 1
+    BIT_RES0 = 0
+
+    def __init__(self, control_bytes):
+        self.mSYN = (control_bytes & 1 << ControlByte.BIT_SYN) >> ControlByte.BIT_SYN
+        self.mACK = (control_bytes & 1 << ControlByte.BIT_ACK) >> ControlByte.BIT_ACK
+        self.mEAK = (control_bytes & 1 << ControlByte.BIT_EAK) >> ControlByte.BIT_EAK
+        self.mRST = (control_bytes & 1 << ControlByte.BIT_RST) >> ControlByte.BIT_RST
+        self.mNAK = (control_bytes & 1 << ControlByte.BIT_NAK) >> ControlByte.BIT_NAK
+        self.mRES2 = (control_bytes & 1 << ControlByte.BIT_RES2) >> ControlByte.BIT_RES2
+        self.mRES1 = (control_bytes & 1 << ControlByte.BIT_RES1) >> ControlByte.BIT_RES1
+        self.mRES0 = (control_bytes & 1 << ControlByte.BIT_RES0) >> ControlByte.BIT_RES0
+        pass
+
+
+class LinkPacket(object):
+    LinkPacketHeaderLength = 10
+    LinkPacketHeaderFormat = '>HHBBBBH'
+    LinkPacketHeaderWithoutChecksumFormat = '>HHBBBB'
+    LinkPacketHeaderField = 'StartOfPacket, PacketLength, ControlByte, PacketSeqNum, PacketAckNum, SessionId, HeaderChecksum'
+    LinkPacketHeaderTupleType = namedtuple('LinkPacketHeaderTuple', LinkPacketHeaderField)
+
+    def __init__(self, packet_bytes: bytes):
+        """ 通过bytes类型数据生成并初始化LinkPacket对象"""
+        self.mHeaderBytes = packet_bytes[:10]
+        self.mHeaderTuple = LinkPacket.LinkPacketHeaderTupleType._make(struct.unpack(LinkPacket.LinkPacketHeaderFormat, self.mHeaderBytes))
+        self.mStartOfPacket = self.mHeaderTuple.StartOfPacket
+        self.mPacketLength = self.mHeaderTuple.PacketLength
+        self.mControlByte = ControlByte(self.mHeaderTuple.ControlByte)
+        self.mPacketSeqNum = self.mHeaderTuple.PacketSeqNum
+        self.mPacketAckNum = self.mHeaderTuple.PacketAckNum
+        self.mSessionId = self.mHeaderTuple.SessionId
+        self.mHeaderChecksum = self.mHeaderTuple.HeaderChecksum
+        self.mPayloadBytes = packet_bytes[10:]
+        self.mPayloadData = packet_bytes[10:-3]
+        self.mPayloadChecksum = int(packet_bytes[-2:-1].hex())
+
+    def info_string(self):
+        return 'SOP: 0x{:04X}  PL: {:d}  '.format(self.mStartOfPacket, self.mPacketLength) +\
+            'SYN: {:d}  ACK: {:d}  EAK: {:d}  RST: {:d}  '.format(self.mControlByte.mSYN, self.mControlByte.mACK, self.mControlByte.mEAK, self.mControlByte.mRST) +\
+            'NAK: {:d}  RES2: {:d}  RES1: {:d}  RES0: {:d}  '.format(self.mControlByte.mNAK + self.mControlByte.mNAK, self.mControlByte.mRES2, self.mControlByte.mRES1, self.mControlByte.mRES0) +\
+            'PSN: {:d}  PAN: {:d}  SI: {:d}  HC: 0x{:04X}  '.format(self.mPacketSeqNum, self.mPacketAckNum, self.mSessionId, self.mHeaderChecksum) + \
+            'PD: {}  PC: 0x{:04X}'.format(self.mPayloadData.hex(), self.mPayloadChecksum)
+
+if __name__ == "__main__":
+    print('test begin')
+    packet_bytes = bytes.fromhex('aa550016c0472d00024901040100019000160c0300bc')
+    # print(type(packet_bytes.hex()))
+    # print(packet_bytes.hex())
+    packet = LinkPacket(packet_bytes)
+    # print(type(packet.mHeaderChecksum))
+    # print('mPayloadData: {}'.format(packet.mPayloadData.hex()))
+    print(packet.info_string())
+    print('test end')
+
+
 BIT_SYN = 7
 BIT_ACK = 6
 BIT_EAK = 5
