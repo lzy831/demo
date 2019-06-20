@@ -10,5 +10,7 @@ def skdebug(*args):
     for i in args:
         s += (str(i) + ' ')
     # logger.debug(s)
-    logger.info(s)
     # logger.trace(s)
+
+    # logger.info(s)
+    print(s)

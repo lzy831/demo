@@ -1,6 +1,9 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
-from enum import Enum
 import random
+from enum import Enum
+from icu_serial_port import SerialPort
 
 
 class LinkRole(Enum):
@@ -11,6 +14,7 @@ class LinkRole(Enum):
 
 class LinkSession(object):
     def __init__(self, role):
+        self.mSerialPort = SerialPort(1,115200)
         self.mRole = role
         self.mPSN = random.randint(0, 255)
         if self.mRole == LinkRole.MCU:
@@ -31,15 +35,17 @@ class LinkSession(object):
             self.mMaxCumAck = 3
 
     def OpenPort(self):
-        pass
+        self.mSerialPort.open()
 
     def ClosePort(self):
-        pass
+        self.mSerialPort.close()
 
     def SendRst(self):
+        self.mSerialPort.send_packet( )
         pass
 
     def SendSyn(self):
+
         pass
 
     def RecviveSynAck(self, timeout=2):
