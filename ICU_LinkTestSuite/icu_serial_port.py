@@ -26,35 +26,58 @@ class SerialPort(object):
         self.mRecvThreadStopFlag = None
         self.mRecvQueue = None
 
-    def open(self):
+    def Open(self):
         if self.mSerialPortObj == None and self.mSendThread == None and self.mRecvThread == None:
             skdebug('serial port was not open')
             try:
                 skdebug('create serial object and open serial', self.mPortNum, self.mBaudrate)
-                mSerialPortObj = serial.Serial(self.mPortNum, self.mBaudrate, timeout=0.1, write_timeout=0.1)
+                self.mSerialPortObj = serial.Serial(self.mPortNum, self.mBaudrate, timeout=0.1, write_timeout=0.1)
+                skdebug('mSerialPortObj:', self.mSerialPortObj)
             except serial.SerialException:
                 raise serial.SerialException
             else:
                 skdebug('serial port open succeed')
             self.mSendThreadStopFlag = False
             self.mSendQueue = queue.Queue(SerialPort.cSendQueueMaxSize)
-            self.mSendThread = threading.Thread(target=self.send_func)
+            self.mSendThread = threading.Thread(target=self.SendFunc)
             self.mSendThread.start()
             self.mRecvThreadStopFlag = False
             self.mRecvQueue = queue.Queue(SerialPort.cRecvQueueMaxSize)
-            self.mRecvThread = threading.Thread(target=self.recv_func)
+            self.mRecvThread = threading.Thread(target=self.RecvFunc)
             self.mRecvThread.start()
             skdebug('serial task and queue create succeed')
         else:
             skdebug('serial port was already open')
 
-    def close(self):
-        pass
+    def Close(self):
+        if self.mSerialPortObj != None:
+            # skdebug('SendThread alive', SendThread.is_alive())
+            # skdebug('RecvThread alive', RecvThread.is_alive())
+            # time.sleep(2)
+            skdebug('ready to close thread')
+            skdebug('SendThread alive', self.mSendThread.is_alive())
+            skdebug('RecvThread alive', self.mRecvThread.is_alive())
+        if self.mRecvThread != None and self.mRecvThread.is_alive():
+            self.mRecvThreadStopFlag = True
+            self.mRecvThread.join()
+            skdebug('mRecvThread join ok')
+            skdebug('SendThread alive', self.mSendThread.is_alive())
+            skdebug('mRecvThread alive', self.mRecvThread.is_alive())
+        if self.mSendThread != None and self.mSendThread.is_alive():
+            self.mSendThreadStopFlag = True
+            self.mSendThread.join()
+            skdebug('SendThread join ok')
+            skdebug('SendThread alive', self.mSendThread.is_alive())
+            skdebug('mRecvThread alive', self.mRecvThread.is_alive())
+        skdebug('will close serial ok')
+        self.mSerialPortObj.close()
+        skdebug('close serial ok')
+        skdebug('close serial transport ok')
 
-    def send_func(self):
+    def SendFunc(self):
         # global LINK_PKT_MAX_PSN
 
-        skdebug('send_func begin')
+        skdebug('send_func begin:', self)
         while True:
             if self.mSendThreadStopFlag:
                 skdebug('SendThreadStopFlag set')
@@ -77,7 +100,7 @@ class SerialPort(object):
                     #     flush_recv_queue()
 
                     # 试着每法送一个包就清空当前的接收队列
-                    self.flush_recv_queue()
+                    self.FlushRecvQueue()
 
             except serial.SerialException:
                 # skdebug('send_func serial close')
@@ -86,7 +109,7 @@ class SerialPort(object):
         # SendQueue.task_done()
         skdebug('send_func exit')
 
-    def recv_func(self):
+    def RecvFunc(self):
         # global LinkPacketSYNLength
 
         skdebug('recv_func begin')
@@ -144,13 +167,13 @@ class SerialPort(object):
         # RecvQueue.task_done()
         skdebug('recv_func exit')
 
-    def flush_recv_queue(self):
+    def FlushRecvQueue(self):
         if self.mRecvQueue != None:
             while not self.mRecvQueue.empty():
                 self.mRecvQueue.get()
 
-    def send_packet(self, packet: bytes):
-        if self.mSerialPort != None:
+    def SendPacket(self, packet: bytes):
+        if self.mSerialPortObj != None:
             skdebug('Send to Remote:', packet.hex())
             self.mSendQueue.put(packet, timeout=1)
             while not self.mSendQueue.empty():
@@ -158,12 +181,13 @@ class SerialPort(object):
         else:
             skdebug('serial not open')
 
-    def recv_packet(self):
-        if self.mSerialPort != None and self.mRecvQueue != None:
+    def RecvPacket(self, timeout=0.1):
+        skdebug('RecvPacket')
+        if self.mSerialPortObj != None and self.mRecvQueue != None:
             try:
-                packet = self.mRecvQueue.get(True, 0.1)
+                packet = self.mRecvQueue.get(True, timeout)
                 # skdebug('type(packet):', type(packet))
-                # skdebug('get a packet from queue:', packet.hex())
+                skdebug('get a packet from queue:', packet.hex())
                 return packet
             except queue.Empty as e:
                 # skdebug('queue empty:', e)

@@ -8,6 +8,14 @@ from icu_debug import *
 
 
 class LinkSpec(object):
+    cBIT_SYN = 7
+    cBIT_ACK = 6
+    cBIT_EAK = 5
+    cBIT_RST = 4
+    cBIT_NAK = 3
+    cBIT_RES2 = 2
+    cBIT_RES1 = 1
+    cBIT_RES0 = 0
 
     cHFeild_SOP = 'StartOfPacket'
     cHFeild_PL = 'PacketLength'
@@ -29,31 +37,57 @@ class LinkSpec(object):
     cLinkPacketHeaderLength = 10
     cLinkPacketHeaderFormat = '>HHBBBBH'
     cLinkPacketHeaderWithoutChecksumFormat = '>HHBBBB'
-
     # cLinkPacketHeaderField = 'StartOfPacket, PacketLength, ControlByte, PacketSeqNum, PacketAckNum, SessionId, HeaderChecksum'
-
     cLinkPacketHeaderField = cHFeild_SOP+' '+cHFeild_PL+' '+cHFeild_CB+' '+cHFeild_PSN+' '+cHFeild_PAN+' '+cHFeild_SI+' '+cHFeild_HC
-
     cLinkPacketHeaderTupleType = namedtuple('LinkPacketHeaderTuple', cLinkPacketHeaderField)
-    cBIT_SYN = 7
-    cBIT_ACK = 6
-    cBIT_EAK = 5
-    cBIT_RST = 4
-    cBIT_NAK = 3
-    cBIT_RES2 = 2
-    cBIT_RES1 = 1
-    cBIT_RES0 = 0
+
+    cHFeild_LV = 'LinkVersion'
+    cHFeild_MNOOSP = 'MaxNumOfOutStdPkts'
+    cHFeild_MRPL = 'MaxRecvPktLen'
+    cHFeild_RT = 'RetransTimeout'
+    cHFeild_CAT = 'CumAckTimeout'
+    cHFeild_MNOR = 'MaxNumOfRetrans'
+    cHFeild_MCA = 'MaxCumAck'
+    cHFeild_PC = 'PayloadChecksum'
+    cLinkSynPayloadLength = 12
+    cLinkSynPayloadFormat = '>BBHHHBBH'
+    cLinkSynPayloadWithoutCheckssumFormat = '>BBHHHBB'
+    cLinkSynPayloadField = cHFeild_LV+' '+cHFeild_MNOOSP+' '+cHFeild_MRPL+' '+cHFeild_RT+' '+cHFeild_CAT+' '+cHFeild_MNOR+' '+cHFeild_MCA+' '+cHFeild_PC
+    cLinkSynPayloadTupleType = namedtuple( 'LinkSynPayloadTuple', cLinkSynPayloadField)
 
 
 class LinkSynPayload(object):
-    def __init__(self):
-        pass
+    def __init__(self, payload_bytes: bytes, payload_dict: dict):
+        if payload_bytes:
+            self.update_with_bytes(payload_bytes)
+        elif payload_dict:
+            self.update_with_dict(payload_dict)
 
-    def update_with_dict(**syn_dict):
-        pass
+    def update_with_dict(self, payload_dict: dict):
+        self.mLinkVersion = payload_dict.get(LinkSpec.cHFeild_LV, 1)
+        self.mMaxNumOfOutStdPkts = payload_dict.get(LinkSpec.cHFeild_MNOOSP, 0)
+        self.mMaxRecvPktLen = payload_dict.get(LinkSpec.cHFeild_MRPL, 0)
+        self.mRetransTimeout = payload_dict.get(LinkSpec.cHFeild_RT, 0)
+        self.mCumAckTimeout = payload_dict.get(LinkSpec.cHFeild_CAT, 0)
+        self.mMaxNumOfRetrans = payload_dict.get(LinkSpec.cHFeild_MNOR, 0)
+        self.mMaxCumAck = payload_dict.get(LinkSpec.cHFeild_MCA, 0)
+        self.mPayloadChecksum = payload_dict.get(LinkSpec.cHFeild_PC, 0)
+
+    def update_with_bytes(self, payload_bytes: bytes):
+        self.mPayloadTuple = LinkSpec.cLinkPacketHeaderTupleType._make(struct.unpack(LinkSpec.cLinkSynPayloadFormat, payload_bytes))
+        self.mLinkVersion = self.mPayloadTuple.LinkVersion
+        self.mMaxNumOfOutStdPkts = self.mPayloadTuple.MaxNumOfOutStdPkts
+        self.mMaxRecvPktLen = self.mPayloadTuple.MaxRecvPktLen
+        self.mRetransTimeout = self.mPayloadTuple.RetransTimeout
+        self.mCumAckTimeout = self.mPayloadTuple.CumAckTimeout
+        self.mMaxNumOfRetrans = self.mPayloadTuple.MaxNumOfRetrans
+        self.mMaxCumAck = self.mPayloadTuple.MaxCumAck
+        self.mPayloadChecksum = self.mPayloadTuple.PayloadChecksum
 
     def to_bytes(self):
-        pass
+        return struct.pack(LinkSpec.cLinkSynPayloadFormat,
+                self.mLinkVersion, self.mMaxNumOfOutStdPkts, self.mMaxRecvPktLen,
+                self.mRetransTimeout, self.mCumAckTimeout, self.mMaxNumOfRetrans, self.mMaxCumAck, self.mPayloadChecksum)
 
 
 class ControlByte(object):
@@ -135,16 +169,19 @@ class LinkPacketHeader(object):
     def to_bytes(self):
         skdebug('to bytes')
         return struct.pack(LinkSpec.cLinkPacketHeaderFormat,
-                            self.mStartOfPacket, self.mPacketLength, self.mControlByte.mValue,
-                            self.mPacketSeqNum, self.mPacketAckNum, self.mSessionId, self.mHeaderChecksum)
-
+                           self.mStartOfPacket, self.mPacketLength, self.mControlByte.mValue,
+                           self.mPacketSeqNum, self.mPacketAckNum, self.mSessionId, self.mHeaderChecksum)
 
 
 class LinkPacket(object):
 
     def gen_std_rst_packet():
-        header = LinkPacketHeader(header_dict={LinkSpec.cHFeild_RST: 1})
-        return LinkPacket(header_bytes=header.to_bytes())
+        return LinkPacket(header_bytes=LinkPacketHeader(header_dict={LinkSpec.cHFeild_RST: 1}).to_bytes())
+
+    def gen_syn_ack_packet(param_dict: dict):
+        header_bytes=LinkPacketHeader(header_dict={LinkSpec.cHFeild_SYN:1,LinkSpec.cHFeild_ACK:1})
+        payload_bytes=LinkSynPayload(param_dict)
+
 
     def __init__(self, packet_bytes=None, header_bytes=None, payload_bytes=None):
         if packet_bytes != None:
@@ -161,15 +198,13 @@ class LinkPacket(object):
         self.mPayloadChecksum = int(packet_bytes[-2:-1].hex())
 
     def update_header_with_bytes(self, header_bytes: bytes):
-        self.mHeaderBytes = header_bytes
         self.mHeader = LinkPacketHeader(header_bytes=header_bytes)
 
-    def update_header_with_dict(self, header_dict):
-        if self.mHeader == None:
-            self.mHeader = LinkPacketHeader(header_dict=header_dict)
-        else:
-            self.mHeader.update_with_dict(header_dict=header_dict)
-        self.mHeaderBytes = self.mHeader.to_bytes()
+    # def update_header_with_dict(self, header_dict):
+    #     if self.mHeader == None:
+    #         self.mHeader = LinkPacketHeader(header_dict=header_dict)
+    #     else:
+    #         self.mHeader.update_with_dict(header_dict=header_dict)
 
     def update_payload_with_bytes(payload_bytes: bytes):
         self.mPayloadBytes = payload_bytes
@@ -177,21 +212,56 @@ class LinkPacket(object):
         self.mPayloadChecksum = int(packet_bytes[-2:-1].hex())
 
     def info_string(self):
-        if hasattr(self,"mPayloadData"):
+        if hasattr(self, "mPayloadData"):
             payload_info = 'PD: {}  PC: 0x{:04X}'.format(self.mPayloadData.hex(), self.mPayloadChecksum)
         else:
-            payload_info=''
+            payload_info = ''
         header_info = 'SOP: 0x{:04X}  PL: {:d}  '.format(self.mHeader.mStartOfPacket, self.mHeader.mPacketLength) +\
             'SYN: {:d}  ACK: {:d}  EAK: {:d}  RST: {:d}  '.format(self.mHeader.mControlByte.mSYN, self.mHeader.mControlByte.mACK, self.mHeader.mControlByte.mEAK, self.mHeader.mControlByte.mRST) +\
             'NAK: {:d}  RES2: {:d}  RES1: {:d}  RES0: {:d}  '.format(self.mHeader.mControlByte.mNAK + self.mHeader.mControlByte.mNAK, self.mHeader.mControlByte.mRES2, self.mHeader.mControlByte.mRES1, self.mHeader.mControlByte.mRES0) +\
             'PSN: {:d}  PAN: {:d}  SI: {:d}  HC: 0x{:04X}\n'.format(self.mHeader.mPacketSeqNum, self.mHeader.mPacketAckNum, self.mHeader.mSessionId, self.mHeader.mHeaderChecksum)
         return header_info+payload_info
 
+    def prepare_to_send(self, psn=0):
+        """ 发送之前,重新计算包长,更新PL,PSN, 更新HC (特定paylaod的bytes数据，应该是在创建时就计算好Checksum的) """
+        pl = LinkSpec.cLinkPacketHeaderLength
+        if hasattr(self, "mPayloadBytes"):
+            pl += len(self.mPayloadBytes)
+        self.mHeader.update_with_dict({LinkSpec.cHFeild_PSN: psn, LinkSpec.cHFeild_PL: pl})
+        self.mHeader.update_checksum()
+
     def to_bytes(self):
-        if hasattr(self,"mPayloadBytes"):
-            return self.mHeaderBytes+self.mPayloadBytes
+        if hasattr(self, "mPayloadBytes"):
+            return self.mHeader.to_bytes()+self.mPayloadBytes
         else:
-            return self.mHeaderBytes
+            return self.mHeader.to_bytes()
+
+    def is_syn_packet(self):
+        if self.mHeader.mControlByte.mSYN == 1 and \
+                self.mHeader.mControlByte.mEAK == 0 and \
+                self.mHeader.mControlByte.mACK == 0 and \
+                self.mHeader.mControlByte.mNAK == 0 and \
+                self.mHeader.mControlByte.mRST == 0:
+            return True
+        return False
+
+    def is_syn_ack_packet(self):
+        if self.mHeader.mControlByte.mSYN == 1 and \
+                self.mHeader.mControlByte.mEAK == 0 and \
+                self.mHeader.mControlByte.mACK == 1 and \
+                self.mHeader.mControlByte.mNAK == 0 and \
+                self.mHeader.mControlByte.mRST == 0:
+            return True
+        return False
+
+    def is_ack_packet(self):
+        if self.mHeader.mControlByte.mSYN == 0 and \
+                self.mHeader.mControlByte.mEAK == 0 and \
+                self.mHeader.mControlByte.mACK == 1 and \
+                self.mHeader.mControlByte.mNAK == 0 and \
+                self.mHeader.mControlByte.mRST == 0:
+            return True
+        return False
 
 
 if __name__ == "__main__":
