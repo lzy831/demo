@@ -61,7 +61,9 @@ class LinkSession(object):
     def ReplySyn(self,syn_pkt_obj: LinkPacket):
         """根据SYN的参数来决定接受还是再次协商"""
         lsp_obj = LinkSynPayload(payload_bytes=syn_pkt_obj.mPayloadBytes)
-        if CanAccpetSynParam(lsp_obj):
+        if self.CanAccpetSynParam(lsp_obj):
+            """可以接受参数"""
+            skdebug('accept syn param')
             param_dict = {
                 LinkSpec.cHFeild_PSN : self.mPSN,
                 LinkSpec.cHFeild_PAN : syn_pkt_obj.mHeader.mPacketSeqNum,
@@ -75,8 +77,9 @@ class LinkSession(object):
                 LinkSpec.cHFeild_MNOR : lsp_obj.mMaxNumOfRetrans,
                 LinkSpec.cHFeild_MCA : lsp_obj.mMaxCumAck,
             }
-            syn_ack_pkt = LinkPacket.gen_syn_ack_packet(param_dict)
         else :
+            """不可以接受参数"""
+            skdebug('negotiate syn param')
             param_dict = {
                 LinkSpec.cHFeild_PSN : self.mPSN,
                 LinkSpec.cHFeild_PAN : syn_pkt_obj.mHeader.mPacketSeqNum,
@@ -90,8 +93,8 @@ class LinkSession(object):
                 LinkSpec.cHFeild_MNOR : self.mMaxNumOfRetrans,
                 LinkSpec.cHFeild_MCA : self.mMaxCumAck,
             }
-            syn_ack_pkt = LinkPacket.gen_syn_ack_packet(param_dict)
-        syn_ack_pkt.prepare_to_send()
+        syn_ack_pkt = LinkPacket.gen_syn_ack_packet(param_dict)
+        skdebug('Send SYN+ACK packet:', syn_ack_pkt.info_string())
         self.mSerialPort.SendPacket(syn_ack_pkt.to_bytes())
 
 
@@ -136,8 +139,9 @@ if __name__ == "__main__":
     session.SendRst()
     skdebug('send rst ok')
 
-    link_pkt_obj = session.RecviveSyn()
-    skdebug('pkt: ', link_pkt_obj.info_string())
+    syn_pkt_obj = session.RecviveSyn()
+    skdebug('pkt: ', syn_pkt_obj.info_string())
+    session.ReplySyn(syn_pkt_obj)
 
     skdebug('sleep begin')
     time.sleep(3)

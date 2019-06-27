@@ -137,24 +137,25 @@ class SerialPort(object):
 
                 header_body = self.mSerialPortObj.read(LinkSpec.cLinkPacketHeaderLength-LinkSpec.cLinkPacketSYNLength)
                 assert len(header_body) == LinkSpec.cLinkPacketHeaderLength - LinkSpec.cLinkPacketSYNLength
-                header_data = sync_bytes+header_body
+                header_bytes = sync_bytes+header_body
 
-                if not is_valid_packet_header(header_data):
+                header_obj = LinkPacketHeader(header_bytes=header_bytes)
+                if not header_obj.is_valid_packet_header(header_bytes):
                     skdebug('invalid header')
                     continue
 
                 skdebug('!!!!!!!!!!!!!!!!!!!!!! recv a pkt:')
-                debug_header(header_data)
+                skdebug('header info:', header_obj.info_string())
 
                 payload_data = bytes()
-                payload_len = get_payload_len_from_header(header_data)
+                payload_len = header_obj.mPacketLength - LinkSpec.cLinkPacketHeaderLength
                 if payload_len > 0:
                     payload_data = self.mSerialPortObj.read(payload_len)
                     assert len(payload_data) == payload_len
-                    debug_syn_payload(payload_data)
+                    # debug_syn_payload(payload_data)
 
                 if not self.mRecvQueue.full():
-                    self.mRecvQueue.put(header_data+payload_data)
+                    self.mRecvQueue.put(header_bytes+payload_data)
                 else:
                     skdebug('queue is full')
             except serial.SerialException:
