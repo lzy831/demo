@@ -3,10 +3,12 @@
 
 import random
 import time
+import logging
 from enum import Enum
 from icu_serial_port import SerialPort
 from icu_link_packet import *
 from icu_error import *
+
 
 class LinkRole(Enum):
     UnKnown = 0
@@ -42,11 +44,11 @@ class LinkSession(object):
     def ClosePort(self):
         self.mSerialPort.Close()
 
-    def CanAccpetSynParam(self,lsp_obj:LinkSynPayload):
+    def CanAccpetSynParam(self, lsp_obj: LinkSynPayload):
         if lsp_obj.mRetransTimeout == self.mRetransTimeout and \
-            lsp_obj.mCumAckTimeout == self.mCumAckTimeout and \
-            lsp_obj.mMaxNumOfRetrans == self.mMaxNumOfRetrans and \
-            lsp_obj.mMaxCumAck == self.mMaxCumAck:
+                lsp_obj.mCumAckTimeout == self.mCumAckTimeout and \
+                lsp_obj.mMaxNumOfRetrans == self.mMaxNumOfRetrans and \
+                lsp_obj.mMaxCumAck == self.mMaxCumAck:
             return True
         return False
 
@@ -58,45 +60,44 @@ class LinkSession(object):
     def SendSyn(self):
         pass
 
-    def ReplySyn(self,syn_pkt_obj: LinkPacket):
+    def ReplySyn(self, syn_pkt_obj: LinkPacket):
         """根据SYN的参数来决定接受还是再次协商"""
         lsp_obj = LinkSynPayload(payload_bytes=syn_pkt_obj.mPayloadBytes)
         if self.CanAccpetSynParam(lsp_obj):
             """可以接受参数"""
             skdebug('accept syn param')
             param_dict = {
-                LinkSpec.cHFeild_PSN : self.mPSN,
-                LinkSpec.cHFeild_PAN : syn_pkt_obj.mHeader.mPacketSeqNum,
+                LinkSpec.cHFeild_PSN: self.mPSN,
+                LinkSpec.cHFeild_PAN: syn_pkt_obj.mHeader.mPacketSeqNum,
                 # 非协商部分采用己端参数
-                LinkSpec.cHFeild_LV : self.mLinkVersion,
-                LinkSpec.cHFeild_MNOOSP : self.mMaxNumOfOutStdPkts,
-                LinkSpec.cHFeild_MRPL : self.mMaxRecvPktLen,
+                LinkSpec.cHFeild_LV: self.mLinkVersion,
+                LinkSpec.cHFeild_MNOOSP: self.mMaxNumOfOutStdPkts,
+                LinkSpec.cHFeild_MRPL: self.mMaxRecvPktLen,
                 # 可协商部分接收对端参数
-                LinkSpec.cHFeild_RT : lsp_obj.mRetransTimeout,
-                LinkSpec.cHFeild_CAT : lsp_obj.mCumAckTimeout,
-                LinkSpec.cHFeild_MNOR : lsp_obj.mMaxNumOfRetrans,
-                LinkSpec.cHFeild_MCA : lsp_obj.mMaxCumAck,
+                LinkSpec.cHFeild_RT: lsp_obj.mRetransTimeout,
+                LinkSpec.cHFeild_CAT: lsp_obj.mCumAckTimeout,
+                LinkSpec.cHFeild_MNOR: lsp_obj.mMaxNumOfRetrans,
+                LinkSpec.cHFeild_MCA: lsp_obj.mMaxCumAck,
             }
-        else :
+        else:
             """不可以接受参数"""
             skdebug('negotiate syn param')
             param_dict = {
-                LinkSpec.cHFeild_PSN : self.mPSN,
-                LinkSpec.cHFeild_PAN : syn_pkt_obj.mHeader.mPacketSeqNum,
+                LinkSpec.cHFeild_PSN: self.mPSN,
+                LinkSpec.cHFeild_PAN: syn_pkt_obj.mHeader.mPacketSeqNum,
                 # 非协商部分采用己端参数
-                LinkSpec.cHFeild_LV : self.mLinkVersion,
-                LinkSpec.cHFeild_MNOOSP : self.mMaxNumOfOutStdPkts,
-                LinkSpec.cHFeild_MRPL : self.mMaxRecvPktLen,
+                LinkSpec.cHFeild_LV: self.mLinkVersion,
+                LinkSpec.cHFeild_MNOOSP: self.mMaxNumOfOutStdPkts,
+                LinkSpec.cHFeild_MRPL: self.mMaxRecvPktLen,
                 # 可协商部分也采用己端参数
-                LinkSpec.cHFeild_RT : self.mRetransTimeout,
-                LinkSpec.cHFeild_CAT : self.mCumAckTimeout,
-                LinkSpec.cHFeild_MNOR : self.mMaxNumOfRetrans,
-                LinkSpec.cHFeild_MCA : self.mMaxCumAck,
+                LinkSpec.cHFeild_RT: self.mRetransTimeout,
+                LinkSpec.cHFeild_CAT: self.mCumAckTimeout,
+                LinkSpec.cHFeild_MNOR: self.mMaxNumOfRetrans,
+                LinkSpec.cHFeild_MCA: self.mMaxCumAck,
             }
         syn_ack_pkt = LinkPacket.gen_syn_ack_packet(param_dict)
         skdebug('Send SYN+ACK packet:', syn_ack_pkt.info_string())
         self.mSerialPort.SendPacket(syn_ack_pkt.to_bytes())
-
 
     def RecviveSyn(self, timeout=2):
         start_time = time.time()
@@ -139,11 +140,20 @@ if __name__ == "__main__":
     session.SendRst()
     skdebug('send rst ok')
 
-    syn_pkt_obj = session.RecviveSyn()
-    skdebug('pkt: ', syn_pkt_obj.info_string())
-    session.ReplySyn(syn_pkt_obj)
+    try:
+        syn_pkt_obj = session.RecviveSyn()
+        skdebug('recvd a syn pkt: ', syn_pkt_obj.info_string())
+
+        session.ReplySyn(syn_pkt_obj)
+    except BaseException as e:
+        skdebug('catched a except, quit')
+        logging.exception(e)
+        session.ClosePort()
+        quit()
+    else:
+        pass
 
     skdebug('sleep begin')
-    time.sleep(3)
+    time.sleep(1)
     skdebug('sleep end')
     session.ClosePort()

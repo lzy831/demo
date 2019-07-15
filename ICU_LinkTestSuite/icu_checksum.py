@@ -16,4 +16,5 @@ def cumulative_sum_checksum(data_without_checksum: bytes):
     for value in data_without_checksum:
         checksum = checksum + value
         # skdebug('checksum', hex(checksum), 'value', value)
+    # skdebug('checksum type:', type(checksum))
     return checksum

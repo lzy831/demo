@@ -77,7 +77,7 @@ class SerialPort(object):
     def SendFunc(self):
         # global LINK_PKT_MAX_PSN
 
-        skdebug('send_func begin:', self)
+        skdebug('send_func begin')
         while True:
             if self.mSendThreadStopFlag:
                 skdebug('SendThreadStopFlag set')
@@ -105,7 +105,7 @@ class SerialPort(object):
             except serial.SerialException:
                 # skdebug('send_func serial close')
                 return
-            time.sleep(0.1)
+            time.sleep(0.01)
         # SendQueue.task_done()
         skdebug('send_func exit')
 
@@ -140,7 +140,7 @@ class SerialPort(object):
                 header_bytes = sync_bytes+header_body
 
                 header_obj = LinkPacketHeader(header_bytes=header_bytes)
-                if not header_obj.is_valid_packet_header(header_bytes):
+                if not header_obj.is_valid():
                     skdebug('invalid header')
                     continue
 
@@ -179,6 +179,7 @@ class SerialPort(object):
             self.mSendQueue.put(packet, timeout=1)
             while not self.mSendQueue.empty():
                 time.sleep(0.01)
+            skdebug('Send to Remote Done')
         else:
             skdebug('serial not open')
 

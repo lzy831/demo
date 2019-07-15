@@ -3,7 +3,6 @@
 
 import struct
 from collections import namedtuple
-
 from icu_debug import *
 from icu_checksum import *
 
@@ -76,6 +75,8 @@ class LinkSynPayload(object):
                                             self.mLinkVersion, self.mMaxNumOfOutStdPkts, self.mMaxRecvPktLen,
                                             self.mRetransTimeout, self.mCumAckTimeout, self.mMaxNumOfRetrans, self.mMaxCumAck)
         self.mPayloadChecksum = clac_checksum(data_without_checksum)
+        skdebug('data_without_checksum:', data_without_checksum)
+        skdebug('mPayloadChecksum:', hex(self.mPayloadChecksum))
 
     def update_with_bytes(self, payload_bytes: bytes):
         self.mPayloadTuple = LinkSpec.cLinkSynPayloadTupleType._make(struct.unpack(LinkSpec.cLinkSynPayloadFormat, payload_bytes))
@@ -169,7 +170,7 @@ class LinkPacketHeader(object):
                                             self.mPacketSeqNum, self.mPacketAckNum, self.mSessionId)
         self.mHeaderChecksum = clac_checksum(data_without_checksum)
 
-    def is_valid_packet_header(self):
+    def is_valid(self):
         """验证包头有效性"""
         return True
 
@@ -177,11 +178,11 @@ class LinkPacketHeader(object):
         header_info = 'SOP: 0x{:04X}  PL: {:d}  '.format(self.mStartOfPacket, self.mPacketLength) +\
             'SYN: {:d}  ACK: {:d}  EAK: {:d}  RST: {:d}  '.format(self.mControlByte.mSYN, self.mControlByte.mACK, self.mControlByte.mEAK, self.mControlByte.mRST) +\
             'NAK: {:d}  RES2: {:d}  RES1: {:d}  RES0: {:d}  '.format(self.mControlByte.mNAK + self.mControlByte.mNAK, self.mControlByte.mRES2, self.mControlByte.mRES1, self.mControlByte.mRES0) +\
-            'PSN: {:d}  PAN: {:d}  SI: {:d}  HC: 0x{:04X}\n'.format(self.mPacketSeqNum, self.mPacketAckNum, self.mSessionId, self.mHeaderChecksum)
+            'PSN: {:d}  PAN: {:d}  SI: {:d}  HC: 0x{:04X} '.format(self.mPacketSeqNum, self.mPacketAckNum, self.mSessionId, self.mHeaderChecksum)
         return header_info
 
     def to_bytes(self):
-        skdebug('to bytes')
+        # skdebug('to bytes')
         return struct.pack(LinkSpec.cLinkPacketHeaderFormat,
                            self.mStartOfPacket, self.mPacketLength, self.mControlByte.mValue,
                            self.mPacketSeqNum, self.mPacketAckNum, self.mSessionId, self.mHeaderChecksum)
@@ -193,9 +194,11 @@ class LinkPacket(object):
         return LinkPacket(header_bytes=LinkPacketHeader(header_dict={LinkSpec.cHFeild_RST: 1}).to_bytes())
 
     def gen_syn_ack_packet(param_dict: dict):
-        header_bytes = LinkPacketHeader(header_dict={LinkSpec.cHFeild_SYN: 1, LinkSpec.cHFeild_ACK: 1})
-        payload_bytes = LinkSynPayload(payload_dict=param_dict)
-        return LinkPacket(header_bytes=header_bytes, payload_bytes=payload_bytes)
+        header = LinkPacketHeader(header_dict={LinkSpec.cHFeild_PAN: param_dict[LinkSpec.cHFeild_PAN],
+                                               LinkSpec.cHFeild_PSN: param_dict[LinkSpec.cHFeild_PSN],
+                                               LinkSpec.cHFeild_SYN: 1, LinkSpec.cHFeild_ACK: 1})
+        payload = LinkSynPayload(payload_dict=param_dict)
+        return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=payload.to_bytes())
 
     def __init__(self, packet_bytes=None, header_bytes=None, payload_bytes=None):
         if packet_bytes != None:
@@ -203,6 +206,7 @@ class LinkPacket(object):
         elif header_bytes != None:
             self.update_header_with_bytes(header_bytes)
             if payload_bytes != None:
+                skdebug('payload_bytes:', payload_bytes)
                 self.update_payload_with_bytes(payload_bytes)
 
     def update_packet_with_bytes(self, packet_bytes: bytes):
@@ -220,13 +224,16 @@ class LinkPacket(object):
     #     else:
     #         self.mHeader.update_with_dict(header_dict=header_dict)
 
-    def update_payload_with_bytes(payload_bytes: bytes):
+    def update_payload_with_bytes(self, payload_bytes: bytes):
         self.mPayloadBytes = payload_bytes
         self.mPayloadData = payload_bytes[0:-2:1]
-        self.mPayloadChecksum = int(packet_bytes[-2:-1].hex())
+        skdebug('payload_bytes[xx].hex():', payload_bytes[-2::1].hex())
+        self.mPayloadChecksum = int(payload_bytes[-2::1].hex(),base=16)
+
 
     def info_string(self):
         if hasattr(self, "mPayloadData"):
+            skdebug('mPayloadChecksum:', hex(self.mPayloadChecksum))
             payload_info = 'PD: {}  PC: 0x{:04X}'.format(self.mPayloadData.hex(), self.mPayloadChecksum)
         else:
             payload_info = ''
