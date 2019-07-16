@@ -89,28 +89,50 @@ ${Default Timeout In Seconds}   2
 
 
 *** Keywords ***
+Send_RST
+    Library_Send_RST
+
+Send_Negotiated_SYN_ACK
+    Library_Send_Negotiated_SYN_ACK
+
+Reply_SYN
+    Library_Reply_SYN
+
+
+
+
+Received_Acceptable_SYN_In_Time
+    Library_Received_Acceptable_SYN_In_Time
+
+Received_ACK_In_Time
+    Library_Received_ACK_In_Time
+
+Received_Nothing_In_Time
+    Library_Received_Nothing_In_Time
+
+
+
+
+
+
+
+
+
+
+
+
 Send Acceptable SYN To MCU
     Send SYN Packet To Remote   &{Acceptable SYN To MCU}
 
-Reply SYN ACK To Remote
-    [Arguments]             &{syn_ack_param}
-    &{SYN ACK Param} =      Library_Reply_SYN_ACK_To_Remote     &{syn_ack_param}
-    Return From Keyword     &{SYN ACK Param}
 
-Receive Acceptable SYN In Time
-    &{SYN Param}=               Receive SYN In Time        ${Default Timeout In Seconds}
-    MCU Can Accept SYN Param    &{SYN Param}
-    Return From Keyword         &{SYN Param}
 
-Send Negotiated SYN ACK To SoC
-    [Arguments]             &{recv_syn_param}
-    ${PSN}=                 Library_Get_PSN_From_Param          &{recv_syn_param}
-    &{sent_param}=          Library_Send_SYN_ACK_To_SoC         ${PSN}
-    Return From Keyword     &{sent_param}
+
+
+
 
 Receive Matched SYN ACK In Time
     [Arguments]                                 &{sent_syn_param}
-    &{recv_syn_ack_param}=                      Library_Receive_ACK_In_Time     ${Default Timeout In Seconds}    &{sent_syn_param}
+    &{recv_syn_ack_param}=                      Library_Received_ACK_In_Time     ${Default Timeout In Seconds}    &{sent_syn_param}
     Library_SYN_Negotiated_Param_Can_Match      &{recv_syn_ack_param}
     Return From Keyword                         &{recv_syn_ack_param}
 
@@ -129,20 +151,13 @@ Receive Matched SYN ACK In Time
 MCU Suite Setup
     Set MCU Default Param       &{Default MCU SYN Param}
     Set MCU Negotiated Param    &{Negotiate MCU Param}
-    Open Transport
+    Library_Open_Transport
 
 MCU Suite Teardown
-    Close Transport
+    Library_Close_Transport
 
-Open Transport
-    Library Open Transport
 
-Close Transport
-    Library Close Transport
 
-Send RST To Soc
-    # Library Reset Transport
-    Library Send RST To Remote
 
 Send SYN To Soc
     [Arguments]                 &{syn_param}
@@ -166,12 +181,9 @@ Receive SYN ACK In Time
     &{SYN ACK Param}=       Library Recvive SYN ACK In Time    ${timeout}      &{syn_param}
     Return From Keyword     &{SYN ACK Param}
 
-Receive ACK In Time
-    [Arguments]                      &{sent_response_param}
-    Library Receive ACK In Time      &{sent_response_param}
 
-Receive Nothing In Time
-    Library Receive Nothing In Time     ${Default Timeout In Seconds}
+
+
 
 *** Keywords ***
 MCU Can Accept SYN Param

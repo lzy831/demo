@@ -4,6 +4,7 @@
 import random
 import time
 import logging
+import threading
 from enum import Enum
 from icu_serial_port import SerialPort
 from icu_link_packet import *
@@ -17,8 +18,10 @@ class LinkRole(Enum):
 
 
 class LinkSession(object):
-    def __init__(self, role):
-        self.mSerialPort = SerialPort('COM1', 115200)
+    _instance_lock = threading.Lock()
+
+    def __init__(self, role=LinkRole.MCU, port='COM1', rate=115200):
+        self.mSerialPort = SerialPort(port, rate)
         self.mRole = role
         self.mPSN = random.randint(0, 255)
         if self.mRole == LinkRole.MCU:
@@ -38,6 +41,21 @@ class LinkSession(object):
             self.mMaxNumOfRetrans = 10
             self.mMaxCumAck = 3
 
+    def UpdateSynNegotiableParam(self, rt, cat, mnor, mca):
+        self.mRetransTimeout = rt
+        self.mCumAckTimeout = cat
+        self.mMaxNumOfRetrans = mnor
+        self.mMaxCumAck = mca
+
+    @classmethod
+    def GetInstance(cls, *args, **kwargs):
+        if not hasattr(LinkSession, "_instance"):
+            with LinkSession._instance_lock:
+                if not hasattr(LinkSession, "_instance"):
+                    LinkSession._instance = LinkSession(*args, **kwargs)
+                    # LinkSession._instance.OpenPort()
+        return LinkSession._instance
+
     def OpenPort(self):
         self.mSerialPort.Open()
 
@@ -52,6 +70,14 @@ class LinkSession(object):
             return True
         return False
 
+    def IsNegotiableSynParam(self, lsp_obj: LinkSynPayload):
+        if lsp_obj.mRetransTimeout != self.mRetransTimeout or \
+                lsp_obj.mCumAckTimeout != self.mCumAckTimeout or \
+                lsp_obj.mMaxNumOfRetrans != self.mMaxNumOfRetrans or \
+                lsp_obj.mMaxCumAck != self.mMaxCumAck:
+            return True
+        return False
+
     def SendRst(self):
         rst_pkt = LinkPacket.gen_std_rst_packet()
         self.mSerialPort.SendPacket(rst_pkt.to_bytes())
@@ -60,8 +86,12 @@ class LinkSession(object):
     def SendSyn(self):
         pass
 
-    def ReplySyn(self, syn_pkt_obj: LinkPacket):
+    def ReplySyn(self, syn_pkt_obj=None):
         """根据SYN的参数来决定接受还是再次协商"""
+        if not syn_pkt_obj:
+            skdebug('use stored syn pkt')
+            syn_pkt_obj = self.recvdSYN
+
         lsp_obj = LinkSynPayload(payload_bytes=syn_pkt_obj.mPayloadBytes)
         if self.CanAccpetSynParam(lsp_obj):
             """可以接受参数"""
@@ -99,15 +129,18 @@ class LinkSession(object):
         skdebug('Send SYN+ACK packet:', syn_ack_pkt.info_string())
         self.mSerialPort.SendPacket(syn_ack_pkt.to_bytes())
 
+    def StoreSyn(self, packet):
+        self.recvdSYN = packet
+
     def RecviveSyn(self, timeout=2):
         start_time = time.time()
         while True:
             pkt_bytes = self.mSerialPort.RecvPacket()
             if pkt_bytes != None:
-                skdebug('received a packet')
+                # skdebug('received a packet')
                 link_pkt_obj = LinkPacket(packet_bytes=pkt_bytes)
                 if link_pkt_obj.is_syn_packet():
-                    skdebug('is syn packet')
+                    skdebug('recv packet is a syn packet')
                     return link_pkt_obj
             cost_time = time.time()-start_time
             if(cost_time > float(timeout)):
@@ -130,7 +163,31 @@ class LinkSession(object):
                 raise RobotTimeoutError
 
     def RecviveAck(self, timeout=2):
-        pass
+        start_time = time.time()
+        while True:
+            pkt_bytes = self.mSerialPort.RecvPacket()
+            if pkt_bytes != None:
+                skdebug('received a packet')
+                link_pkt_obj = LinkPacket(packet_bytes=pkt_bytes)
+                if link_pkt_obj.is_ack_packet():
+                    skdebug('is ack packet')
+                    return link_pkt_obj
+            cost_time = time.time()-start_time
+            if(cost_time > float(timeout)):
+                skdebug('timeout cost_time:', cost_time)
+                raise RobotTimeoutError
+
+    def RecviveNothing(self, timeout=2):
+        start_time = time.time()
+        while True:
+            pkt_bytes = self.mSerialPort.RecvPacket()
+            if pkt_bytes != None:
+                skdebug('received a packet')
+                raise RobotRecvInvalidData
+            cost_time = time.time()-start_time
+            if(cost_time > float(timeout)):
+                skdebug('timeout cost_time:', cost_time)
+                return
 
 
 if __name__ == "__main__":

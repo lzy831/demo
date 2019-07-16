@@ -3,10 +3,10 @@ Resource    ..\\Common.robot
 
 *** Test Cases ***
 握手_正常流程_协商二次_测试两次协商正常情况
-    Send RST To Soc
-    &{SYN Param}=                   Receive SYN In Time                     ${Default Timeout In Seconds}
-    &{Negotiated Param}=            Send Negotiated SYN ACK To SoC          &{SYN Param}
+    Send_RST
+    Received_Acceptable_SYN_In_Time
+    Send_Negotiated_SYN_ACK
     &{Negotiated ACK Param}=        Receive Matched SYN ACK In Time         &{Negotiated Param}
-    &{SYN ACK Param}=               Reply SYN ACK To Remote                 &{Negotiated ACK Param}
-    Receive ACK In Time             &{SYN ACK Param}
-    Receive Nothing In Time
+    &{SYN ACK Param}=               Reply_SYN_ACK_To_Remote                 &{Negotiated ACK Param}
+    Received_ACK_In_Time             &{SYN ACK Param}
+    Received_Nothing_In_Time

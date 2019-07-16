@@ -1,0 +1,6 @@
+{
+    "files.exclude": {
+        "icu_link_discard.py": true,
+        "icu_serial_discard.py": true
+    }
+}

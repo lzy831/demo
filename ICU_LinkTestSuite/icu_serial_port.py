@@ -125,7 +125,7 @@ class SerialPort(object):
 
             try:
                 skdebug('recv_func try to read')
-                skdebug(LinkSpec.cLinkPacketSYNLength)
+                # skdebug(LinkSpec.cLinkPacketSYNLength)
 
                 sync_bytes = self.mSerialPortObj.read(LinkSpec.cLinkPacketSYNLength)
                 if len(sync_bytes) != 2:
@@ -159,7 +159,7 @@ class SerialPort(object):
                 else:
                     skdebug('queue is full')
             except serial.SerialException:
-                # skdebug('recv_func serial close')
+                skdebug('recv_func catch SerialException')
                 return
 
             # skdebug('sleep 10ms')

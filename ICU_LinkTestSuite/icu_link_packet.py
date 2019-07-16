@@ -165,6 +165,13 @@ class LinkPacketHeader(object):
         self.mPacketSeqNum = header_dict.get(LinkSpec.cHFeild_PSN, 0)
         self.mPacketAckNum = header_dict.get(LinkSpec.cHFeild_PAN, 0)
         self.mSessionId = header_dict.get(LinkSpec.cHFeild_SI, 0)
+        self.update_checksum()
+
+    def update_packet_length(self, len):
+        self.mPacketLength = len
+        self.update_checksum()
+
+    def update_checksum(self):
         data_without_checksum = struct.pack(LinkSpec.cLinkPacketHeaderWithoutChecksumFormat,
                                             self.mStartOfPacket, self.mPacketLength, self.mControlByte.mValue,
                                             self.mPacketSeqNum, self.mPacketAckNum, self.mSessionId)
@@ -208,12 +215,18 @@ class LinkPacket(object):
             if payload_bytes != None:
                 skdebug('payload_bytes:', payload_bytes)
                 self.update_payload_with_bytes(payload_bytes)
+                self.update_packet_length(len(header_bytes)+len(payload_bytes))
+            else:
+                self.update_packet_length(len(header_bytes))
+
+    def update_packet_length(self, pkt_len):
+        self.mHeader.update_packet_length(pkt_len)
 
     def update_packet_with_bytes(self, packet_bytes: bytes):
         self.update_header_with_bytes(packet_bytes[:10])
         self.mPayloadBytes = packet_bytes[10:]
-        self.mPayloadData = packet_bytes[10:-3]
-        self.mPayloadChecksum = int(packet_bytes[-2:-1].hex())
+        self.mPayloadData = packet_bytes[10:-2]
+        self.mPayloadChecksum = int(packet_bytes[-2::1].hex(), base=16)
 
     def update_header_with_bytes(self, header_bytes: bytes):
         self.mHeader = LinkPacketHeader(header_bytes=header_bytes)
@@ -227,9 +240,7 @@ class LinkPacket(object):
     def update_payload_with_bytes(self, payload_bytes: bytes):
         self.mPayloadBytes = payload_bytes
         self.mPayloadData = payload_bytes[0:-2:1]
-        skdebug('payload_bytes[xx].hex():', payload_bytes[-2::1].hex())
-        self.mPayloadChecksum = int(payload_bytes[-2::1].hex(),base=16)
-
+        self.mPayloadChecksum = int(payload_bytes[-2::1].hex(), base=16)
 
     def info_string(self):
         if hasattr(self, "mPayloadData"):
