@@ -71,17 +71,15 @@ class LinkSession(object):
         return False
 
     def IsNegotiableSynParam(self, lsp_obj: LinkSynPayload):
-        if lsp_obj.mRetransTimeout != self.mRetransTimeout or \
-                lsp_obj.mCumAckTimeout != self.mCumAckTimeout or \
-                lsp_obj.mMaxNumOfRetrans != self.mMaxNumOfRetrans or \
-                lsp_obj.mMaxCumAck != self.mMaxCumAck:
-            return True
-        return False
+        return not self.CanAccpetSynParam(lsp_obj)
 
     def SendRst(self):
         rst_pkt = LinkPacket.gen_std_rst_packet()
         self.mSerialPort.SendPacket(rst_pkt.to_bytes())
-        pass
+
+    def SendNak(self):
+        nak_pkt = LinkPacket.gen_nak_packet()
+        self.mSerialPort.SendPacket(nak_pkt.to_bytes())
 
     def SendSyn(self):
         pass
@@ -140,11 +138,11 @@ class LinkSession(object):
                 # skdebug('received a packet')
                 link_pkt_obj = LinkPacket(packet_bytes=pkt_bytes)
                 if link_pkt_obj.is_syn_packet():
-                    skdebug('recv packet is a syn packet')
+                    skdebug('recv packet is a syn packet:', link_pkt_obj.info_string())
                     return link_pkt_obj
             cost_time = time.time()-start_time
             if(cost_time > float(timeout)):
-                skdebug('timeout cost_time:', cost_time)
+                skdebug('RecviveSyn timeout cost_time:', cost_time)
                 raise RobotTimeoutError
 
     def RecviveSynAck(self, timeout=2):
@@ -152,14 +150,14 @@ class LinkSession(object):
         while True:
             pkt_bytes = self.mSerialPort.RecvPacket()
             if pkt_bytes != None:
-                skdebug('received a packet')
+                # skdebug('received a packet')
                 link_pkt_obj = LinkPacket(packet_bytes=pkt_bytes)
                 if link_pkt_obj.is_syn_ack_packet():
-                    skdebug('is syn packet')
+                    skdebug('recv packet is syn ack packet:', link_pkt_obj.info_string())
                     return link_pkt_obj
             cost_time = time.time()-start_time
             if(cost_time > float(timeout)):
-                skdebug('timeout cost_time:', cost_time)
+                skdebug('RecviveSynAck timeout cost_time:', cost_time)
                 raise RobotTimeoutError
 
     def RecviveAck(self, timeout=2):
@@ -174,7 +172,7 @@ class LinkSession(object):
                     return link_pkt_obj
             cost_time = time.time()-start_time
             if(cost_time > float(timeout)):
-                skdebug('timeout cost_time:', cost_time)
+                skdebug('RecviveAck timeout cost_time:', cost_time)
                 raise RobotTimeoutError
 
     def RecviveNothing(self, timeout=2):

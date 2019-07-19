@@ -94,6 +94,10 @@ class LinkSynPayload(object):
                            self.mLinkVersion, self.mMaxNumOfOutStdPkts, self.mMaxRecvPktLen,
                            self.mRetransTimeout, self.mCumAckTimeout, self.mMaxNumOfRetrans, self.mMaxCumAck, self.mPayloadChecksum)
 
+    def info_string(self):
+        return '\nLSP: {{LV: {:d}  MNOOSP: {:d}  MRPL: {:d}  RT: {:d}  CAT: {:d}  MNOR: {:d}  MAC: {:d}  PC: 0x{:04X}}}'.format(
+            self.mLinkVersion, self.mMaxNumOfOutStdPkts, self.mMaxRecvPktLen, self.mRetransTimeout, self.mCumAckTimeout, self.mMaxNumOfRetrans, self.mMaxCumAck, self.mPayloadChecksum)
+
 
 class ControlByte(object):
     def __init__(self, cb_int=None, cb_dict=None):
@@ -138,12 +142,12 @@ class ControlByte(object):
 class LinkPacketHeader(object):
 
     def __init__(self, header_bytes=None, header_dict=None):
-        skdebug('LinkPacketHeader construct')
+        # skdebug('LinkPacketHeader construct')
         if header_bytes != None:
-            skdebug('header_bytes exist')
+            # skdebug('header_bytes exist')
             self.update_with_bytes(header_bytes)
         elif header_dict != None:
-            skdebug('header_dict exist')
+            # skdebug('header_dict exist')
             self.update_with_dict(header_dict)
 
     def update_with_bytes(self, header_bytes: bytes):
@@ -182,10 +186,10 @@ class LinkPacketHeader(object):
         return True
 
     def info_string(self):
-        header_info = 'SOP: 0x{:04X}  PL: {:d}  '.format(self.mStartOfPacket, self.mPacketLength) +\
+        header_info = '\nHeader: {{SOP: 0x{:04X}  PL: {:d}  '.format(self.mStartOfPacket, self.mPacketLength) +\
             'SYN: {:d}  ACK: {:d}  EAK: {:d}  RST: {:d}  '.format(self.mControlByte.mSYN, self.mControlByte.mACK, self.mControlByte.mEAK, self.mControlByte.mRST) +\
             'NAK: {:d}  RES2: {:d}  RES1: {:d}  RES0: {:d}  '.format(self.mControlByte.mNAK + self.mControlByte.mNAK, self.mControlByte.mRES2, self.mControlByte.mRES1, self.mControlByte.mRES0) +\
-            'PSN: {:d}  PAN: {:d}  SI: {:d}  HC: 0x{:04X} '.format(self.mPacketSeqNum, self.mPacketAckNum, self.mSessionId, self.mHeaderChecksum)
+            'PSN: {:d}  PAN: {:d}  SI: {:d}  HC: 0x{:04X}}}'.format(self.mPacketSeqNum, self.mPacketAckNum, self.mSessionId, self.mHeaderChecksum)
         return header_info
 
     def to_bytes(self):
@@ -197,8 +201,24 @@ class LinkPacketHeader(object):
 
 class LinkPacket(object):
 
+    def gen_random_payload(size=16):
+        data = bytes.fromhex('01020304050607080900')
+        res = clac_checksum(data)
+        # skdebug('res:', res)
+        # skdebug('res:', hex(res))
+        # skdebug('res type:', type(res))
+        # skdebug('res.to_bytes():', res.to_bytes(length=2,byteorder='big',signed=False))
+        # skdebug('res.to_bytes() type:', type(res.to_bytes(length=2,byteorder='big',signed=False)))
+        return data + res.to_bytes(length=2,byteorder='big',signed=False)
+
     def gen_std_rst_packet():
         return LinkPacket(header_bytes=LinkPacketHeader(header_dict={LinkSpec.cHFeild_RST: 1}).to_bytes())
+
+    def gen_nak_packet():
+        header = LinkPacket(header_bytes=LinkPacketHeader(header_dict={LinkSpec.cHFeild_NAK: 1}).to_bytes())
+        pl_bytes = LinkPacket.gen_random_payload()
+        skdebug('payload:', pl_bytes)
+        return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes)
 
     def gen_syn_ack_packet(param_dict: dict):
         header = LinkPacketHeader(header_dict={LinkSpec.cHFeild_PAN: param_dict[LinkSpec.cHFeild_PAN],
@@ -245,7 +265,12 @@ class LinkPacket(object):
     def info_string(self):
         if hasattr(self, "mPayloadData"):
             skdebug('mPayloadChecksum:', hex(self.mPayloadChecksum))
-            payload_info = 'PD: {}  PC: 0x{:04X}'.format(self.mPayloadData.hex(), self.mPayloadChecksum)
+            if self.is_syn_packet() or self.is_syn_ack_packet():
+                payload_info = LinkSynPayload(payload_bytes=self.mPayloadBytes).info_string()
+            elif is_eak_packet():
+                pass
+            else:
+                payload_info = 'PD: {}  PC: 0x{:04X}'.format(self.mPayloadData.hex(), self.mPayloadChecksum)
         else:
             payload_info = ''
         return self.mHeader.info_string()+payload_info
@@ -291,22 +316,28 @@ class LinkPacket(object):
             return True
         return False
 
+    def is_eak_packet(self):
+        return False
+
 
 if __name__ == "__main__":
     print('test begin')
-    packet_bytes = bytes.fromhex('aa550016c0472d00024901040100019000160c0300bc')
-    # print(type(packet_bytes.hex()))
-    # print(packet_bytes.hex())
-    packet = LinkPacket(packet_bytes=packet_bytes)
+    # packet_bytes = bytes.fromhex('aa550016c0472d00024901040100019000160c0300bc')
+    # # print(type(packet_bytes.hex()))
+    # # print(packet_bytes.hex())
+    # packet = LinkPacket(packet_bytes=packet_bytes)
 
-    # print(type(packet.mHeaderChecksum))
-    # print('mPayloadData: {}'.format(packet.mPayloadData.hex()))
-    print(packet.info_string())
-    print('cLinkPacketHeaderField: ', LinkSpec.cLinkPacketHeaderField)
+    # # print(type(packet.mHeaderChecksum))
+    # # print('mPayloadData: {}'.format(packet.mPayloadData.hex()))
+    # print(packet.info_string())
+    # print('cLinkPacketHeaderField: ', LinkSpec.cLinkPacketHeaderField)
 
-    rst_pkt = LinkPacket.gen_std_rst_packet()
-    print('rst_pkt info: ', rst_pkt.info_string())
-    print('rst_pkt bytes: ', rst_pkt.to_bytes())
-    print('rst_pkt bytes: ', rst_pkt.to_bytes().hex())
+    # rst_pkt = LinkPacket.gen_std_rst_packet()
+    # print('rst_pkt info: ', rst_pkt.info_string())
+    # print('rst_pkt bytes: ', rst_pkt.to_bytes())
+    # print('rst_pkt bytes: ', rst_pkt.to_bytes().hex())
 
+    payload_bytes = LinkPacket.gen_random_payload()
+    skdebug('payload_bytes:', payload_bytes)
+    skdebug('payload_bytes:', payload_bytes.hex())
     print('test end')

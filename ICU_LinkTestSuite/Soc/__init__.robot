@@ -1,4 +1,4 @@
 *** Settings ***
 Resource            ..\\Common.robot
-Suite Setup         MCU Suite Setup        
-Suite Teardown      MCU Suite Teardown
+Suite Setup         SoC_Suite_Setup        
+Suite Teardown      Soc_Suite_Teardown

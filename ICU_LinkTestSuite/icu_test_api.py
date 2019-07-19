@@ -205,15 +205,23 @@ def Library_Close_Transport():
     skdebug('Library_Close_Transport begin, session:', session)
     session.ClosePort()
 
+
 def Library_Update_SYN_Negotiable_Param():
     session: LinkSession = LinkSession.GetInstance()
     skdebug('Library_Update_SYN_Negotiable_Param begin, session:', session)
-    session.UpdateSynNegotiableParam(500,30,5,4)
+    session.UpdateSynNegotiableParam(500, 30, 5, 4)
+
 
 def Library_Send_RST():
     session: LinkSession = LinkSession.GetInstance()
     skdebug('Library_Send_RST begin, session:', session)
     session.SendRst()
+
+
+def Library_Send_NAK():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('Library_Send_NAK begin, session:', session)
+    session.SendNak()
 
 
 def Library_Received_Acceptable_SYN_In_Time():
@@ -222,7 +230,19 @@ def Library_Received_Acceptable_SYN_In_Time():
     syn_pkt_obj = session.RecviveSyn(timeout=2)
     session.StoreSyn(syn_pkt_obj)
     lsp_obj = LinkSynPayload(payload_bytes=syn_pkt_obj.mPayloadBytes)
-    return session.CanAccpetSynParam(lsp_obj)
+    if not session.CanAccpetSynParam(lsp_obj):
+        raise RobotRecvInvalidData
+
+
+def Library_Received_Acceptable_SYN_ACK_In_Time():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('Library_Received_Acceptable_SYN_In_Time begin, session:', session)
+    syn_pkt_obj = session.RecviveSynAck(timeout=2)
+    session.StoreSyn(syn_pkt_obj)
+    lsp_obj = LinkSynPayload(payload_bytes=syn_pkt_obj.mPayloadBytes)
+    if not session.CanAccpetSynParam(lsp_obj):
+        raise RobotRecvInvalidData
+
 
 def Library_Received_Negotiable_SYN_In_Time():
     session: LinkSession = LinkSession.GetInstance()
@@ -230,7 +250,9 @@ def Library_Received_Negotiable_SYN_In_Time():
     syn_pkt_obj = session.RecviveSyn(timeout=2)
     session.StoreSyn(syn_pkt_obj)
     lsp_obj = LinkSynPayload(payload_bytes=syn_pkt_obj.mPayloadBytes)
-    return session.IsNegotiableSynParam(lsp_obj)
+    if not session.IsNegotiableSynParam(lsp_obj):
+        raise RobotRecvInvalidData
+
 
 def Library_Reply_SYN():
     session: LinkSession = LinkSession.GetInstance()
@@ -242,6 +264,7 @@ def Library_Send_Negotiated_SYN_ACK():
     session: LinkSession = LinkSession.GetInstance()
     skdebug('Library_Send_Negotiated_SYN_ACK begin, session:', session)
     return session.ForceNegotiateSyn()
+
 
 def Library_Received_ACK_In_Time():
     session: LinkSession = LinkSession.GetInstance()
@@ -286,10 +309,6 @@ def Library_Received_Nothing_In_Time():
 #             raise RobotTimeoutError
 
 
-
-
-
-
 def test_syn_once_success():
     try:
         Library_Open_Transport()
@@ -298,6 +317,8 @@ def test_syn_once_success():
         Library_Reply_SYN()
         Library_Received_ACK_In_Time()
         Library_Received_Nothing_In_Time()
+        skdebug('test_syn_once_success succeed')
+        LinkSession.GetInstance(LinkRole.MCU).ClosePort()
     except BaseException as e:
         skdebug('catched a except, quit')
         logging.exception(e)
@@ -305,9 +326,9 @@ def test_syn_once_success():
         quit()
     else:
         pass
-
     time.sleep(1)
     LinkSession.GetInstance(LinkRole.MCU).ClosePort()
+
 
 def test_syn_twice_success():
     try:
@@ -316,10 +337,12 @@ def test_syn_twice_success():
         Library_Send_RST()
         Library_Received_Negotiable_SYN_In_Time()
         Library_Reply_SYN()
-        Library_Received_Acceptable_SYN_In_Time()
+        Library_Received_Acceptable_SYN_ACK_In_Time()
         Library_Reply_SYN()
         Library_Received_ACK_In_Time()
         Library_Received_Nothing_In_Time()
+        skdebug('test_syn_twice_success succeed')
+        LinkSession.GetInstance(LinkRole.MCU).ClosePort()
     except BaseException as e:
         skdebug('catched a except, quit')
         logging.exception(e)
@@ -327,12 +350,34 @@ def test_syn_twice_success():
         quit()
     else:
         pass
-
     time.sleep(1)
     LinkSession.GetInstance(LinkRole.MCU).ClosePort()
 
 
+def test_syn_once_insert_nak():
+    try:
+        Library_Open_Transport()
+        Library_Send_RST()
+        Library_Received_Acceptable_SYN_In_Time()
+        Library_Send_NAK()
+        Library_Received_Acceptable_SYN_In_Time()
+        Library_Reply_SYN()
+        Library_Received_ACK_In_Time()
+        Library_Received_Nothing_In_Time()
+        skdebug('test_syn_once_insert_nak succeed')
+        LinkSession.GetInstance(LinkRole.MCU).ClosePort()
+    except BaseException as e:
+        skdebug('catched a except, quit')
+        logging.exception(e)
+        LinkSession.GetInstance(LinkRole.MCU).ClosePort()
+        quit()
+    else:
+        pass
+    time.sleep(1)
+    LinkSession.GetInstance(LinkRole.MCU).ClosePort()
+
 
 if __name__ == "__main__":
     # test_syn_once_success()
-    test_syn_twice_success()
+    # test_syn_twice_success()
+    test_syn_once_insert_nak()

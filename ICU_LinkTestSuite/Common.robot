@@ -92,14 +92,14 @@ ${Default Timeout In Seconds}   2
 Send_RST
     Library_Send_RST
 
+Send_NAK
+    Library_Send_NAK
+
 Send_Negotiated_SYN_ACK
     Library_Send_Negotiated_SYN_ACK
 
 Reply_SYN
     Library_Reply_SYN
-
-
-
 
 Received_Acceptable_SYN_In_Time
     Library_Received_Acceptable_SYN_In_Time
@@ -110,19 +110,15 @@ Received_ACK_In_Time
 Received_Nothing_In_Time
     Library_Received_Nothing_In_Time
 
+Update_SYN_Negotiable_Param
+    Library_Update_SYN_Negotiable_Param
 
+Received_Negotiable_SYN_In_Time
+    Library_Received_Negotiable_SYN_In_Time
 
+Received_Acceptable_SYN_ACK_In_Time
+    Library_Received_Acceptable_SYN_ACK_In_Time
 
-
-
-
-
-
-
-
-
-Send Acceptable SYN To MCU
-    Send SYN Packet To Remote   &{Acceptable SYN To MCU}
 
 
 
@@ -148,14 +144,19 @@ Receive Matched SYN ACK In Time
 
 
 *** Keywords ***
-MCU Suite Setup
-    Set MCU Default Param       &{Default MCU SYN Param}
-    Set MCU Negotiated Param    &{Negotiate MCU Param}
+MCU_Suite_Setup
+    # Set MCU Default Param       &{Default MCU SYN Param}
+    # Set MCU Negotiated Param    &{Negotiate MCU Param}
     Library_Open_Transport
 
-MCU Suite Teardown
+MCU_Suite_Teardown
     Library_Close_Transport
 
+SoC_Suite_Setup
+    Library_Open_Transport
+
+SoC_Suite_Teardown
+    Library_Close_Transport
 
 
 

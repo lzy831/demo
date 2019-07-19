@@ -5,8 +5,8 @@
 from robot.api import logger
 import logging
 
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
+plogger = logging.getLogger()
+plogger.setLevel(logging.DEBUG)
 
 consoleHandler = logging.StreamHandler()
 consoleHandler.setLevel(logging.DEBUG)
@@ -15,7 +15,7 @@ consoleHandler.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(thread)d - %(message)s')
 consoleHandler.setFormatter(formatter)
 
-logger.addHandler(consoleHandler)
+plogger.addHandler(consoleHandler)
 
 def skdebug(*args):
     s = ''
@@ -27,4 +27,6 @@ def skdebug(*args):
 
     # logger.info(s)
     # print(s)
-    logger.debug(s)
+
+    plogger.debug(s)
+    # logger.debug(s)
