@@ -3,6 +3,7 @@
 
 
 from robot.api import logger
+
 import logging
 
 plogger = logging.getLogger()
@@ -25,8 +26,8 @@ def skdebug(*args):
     # logger.debug(s)
     # logger.trace(s)
 
-    # logger.info(s)
+    logger.info(s)
     # print(s)
 
-    plogger.debug(s)
+    # plogger.debug(s)
     # logger.debug(s)

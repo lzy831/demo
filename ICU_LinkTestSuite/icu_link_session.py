@@ -21,9 +21,16 @@ class LinkSession(object):
     _instance_lock = threading.Lock()
 
     def __init__(self, role=LinkRole.MCU, port='COM1', rate=115200):
+        self.Reset(role, port, rate)
+
+    def Reset(self, role=LinkRole.MCU, port='COM1', rate=115200):
         self.mSerialPort = SerialPort(port, rate)
         self.mRole = role
         self.mPSN = random.randint(0, 255)
+        self.mRecvdSYN = None
+        self.UpdateSynDefaultParam()
+
+    def UpdateSynDefaultParam(self):
         if self.mRole == LinkRole.MCU:
             self.mLinkVersion = 1
             self.mMaxNumOfOutStdPkts = 4
@@ -40,12 +47,30 @@ class LinkSession(object):
             self.mCumAckTimeout = 22
             self.mMaxNumOfRetrans = 10
             self.mMaxCumAck = 3
+        self.DebugLinkParam()
 
-    def UpdateSynNegotiableParam(self, rt, cat, mnor, mca):
-        self.mRetransTimeout = rt
-        self.mCumAckTimeout = cat
-        self.mMaxNumOfRetrans = mnor
-        self.mMaxCumAck = mca
+    def UpdateSynNegotiableParam(self, rt=500, cat=30, mnor=5, mca=4):
+        if rt:
+            self.mRetransTimeout = rt
+        else:
+            self.mRetransTimeout = random.randint(20, 65535)
+        if cat:
+            self.mCumAckTimeout = cat
+        else:
+            self.mCumAckTimeout = random.randint(10, self.mRetransTimeout/2)
+        if mnor:
+            self.mMaxNumOfRetrans = mnor
+        else:
+            self.mMaxNumOfRetrans = random.randint(1, 30)
+        if mca:
+            self.mMaxCumAck = mca
+        else:
+            self.mMaxCumAck = random.randint(0, 127)
+        self.DebugLinkParam()
+
+    def DebugLinkParam(self):
+        link_param_string = 'RT: {:d}  CAT: {:d}  MNOR: {:d}  MCA: {:d}'.format(self.mRetransTimeout, self.mCumAckTimeout, self.mMaxNumOfRetrans, self.mMaxCumAck)
+        skdebug('session default link param:', link_param_string)
 
     @classmethod
     def GetInstance(cls, *args, **kwargs):
@@ -73,22 +98,74 @@ class LinkSession(object):
     def IsNegotiableSynParam(self, lsp_obj: LinkSynPayload):
         return not self.CanAccpetSynParam(lsp_obj)
 
+    def IsRepeatSynParam(self, lsp_obj: LinkSynPayload):
+        if not self.mRecvdSYN:
+            return False
+        recvedLSP = LinkSynPayload(payload_bytes=self.mRecvdSYN.mPayloadBytes)
+        if lsp_obj.mRetransTimeout == recvedLSP.mRetransTimeout and \
+                lsp_obj.mCumAckTimeout == recvedLSP.mCumAckTimeout and \
+                lsp_obj.mMaxNumOfRetrans == recvedLSP.mMaxNumOfRetrans and \
+                lsp_obj.mMaxCumAck == recvedLSP.mMaxCumAck:
+            return True
+        return False
+
+    def UpdatePSN(self):
+        self.mPSN = (self.mPSN+1) % 256
+
+    def SendPacket(self, packet, update_psn=True):
+        skdebug('SendPacket:', packet.info_string())
+        self.UpdatePSN()
+        self.mSerialPort.SendPacket(packet.to_bytes())
+
     def SendRst(self):
         rst_pkt = LinkPacket.gen_std_rst_packet()
-        self.mSerialPort.SendPacket(rst_pkt.to_bytes())
+        self.SendPacket(rst_pkt, False)
+
+    def SendEak(self):
+        eak_pkt = LinkPacket.gen_random_eak_packet()
+        self.SendPacket(eak_pkt, False)
 
     def SendNak(self):
         nak_pkt = LinkPacket.gen_nak_packet()
-        self.mSerialPort.SendPacket(nak_pkt.to_bytes())
+        self.SendPacket(nak_pkt, False)
+
+    def SendApp(self):
+        param_dict = {
+            LinkSpec.cHFeild_PSN: self.mPSN
+        }
+        app_pkt = LinkPacket.gen_random_app_packet(param_dict)
+        self.SendPacket(app_pkt)
+
+    def SendAck(self, syn_pkt_obj=None):
+        if not syn_pkt_obj:
+            skdebug('use stored syn pkt')
+            syn_pkt_obj = self.mRecvdSYN
+
+        param_dict = {
+            LinkSpec.cHFeild_PAN: syn_pkt_obj.mHeader.mPacketSeqNum,
+        }
+        ack_pkt = LinkPacket.gen_ack_packet(param_dict)
+        self.SendPacket(ack_pkt, False)
 
     def SendSyn(self):
-        pass
+        param_dict = {
+            LinkSpec.cHFeild_PSN: self.mPSN,
+            LinkSpec.cHFeild_LV: self.mLinkVersion,
+            LinkSpec.cHFeild_MNOOSP: self.mMaxNumOfOutStdPkts,
+            LinkSpec.cHFeild_MRPL: self.mMaxRecvPktLen,
+            LinkSpec.cHFeild_RT: self.mRetransTimeout,
+            LinkSpec.cHFeild_CAT: self.mCumAckTimeout,
+            LinkSpec.cHFeild_MNOR: self.mMaxNumOfRetrans,
+            LinkSpec.cHFeild_MCA: self.mMaxCumAck,
+        }
+        syn_pkt = LinkPacket.gen_syn_packet(param_dict)
+        self.SendPacket(syn_pkt)
 
     def ReplySyn(self, syn_pkt_obj=None):
         """根据SYN的参数来决定接受还是再次协商"""
         if not syn_pkt_obj:
             skdebug('use stored syn pkt')
-            syn_pkt_obj = self.recvdSYN
+            syn_pkt_obj = self.mRecvdSYN
 
         lsp_obj = LinkSynPayload(payload_bytes=syn_pkt_obj.mPayloadBytes)
         if self.CanAccpetSynParam(lsp_obj):
@@ -124,11 +201,14 @@ class LinkSession(object):
                 LinkSpec.cHFeild_MCA: self.mMaxCumAck,
             }
         syn_ack_pkt = LinkPacket.gen_syn_ack_packet(param_dict)
-        skdebug('Send SYN+ACK packet:', syn_ack_pkt.info_string())
-        self.mSerialPort.SendPacket(syn_ack_pkt.to_bytes())
+        self.SendPacket(syn_ack_pkt)
+
+    def SendBadPkt(self,type):
+        bad_pkt = LinkPacket.gen_bad_packet(type)
+        self.SendPacket(bad_pkt)
 
     def StoreSyn(self, packet):
-        self.recvdSYN = packet
+        self.mRecvdSYN = packet
 
     def RecviveSyn(self, timeout=2):
         start_time = time.time()
@@ -168,7 +248,7 @@ class LinkSession(object):
                 skdebug('received a packet')
                 link_pkt_obj = LinkPacket(packet_bytes=pkt_bytes)
                 if link_pkt_obj.is_ack_packet():
-                    skdebug('is ack packet')
+                    skdebug('recv packet is ack packet:', link_pkt_obj.info_string())
                     return link_pkt_obj
             cost_time = time.time()-start_time
             if(cost_time > float(timeout)):

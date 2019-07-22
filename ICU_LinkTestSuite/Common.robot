@@ -92,11 +92,32 @@ ${Default Timeout In Seconds}   2
 Send_RST
     Library_Send_RST
 
+Send_SYN
+    Library_Send_SYN
+
+Send_ACK
+    Library_Send_ACK
+
 Send_NAK
     Library_Send_NAK
 
+Send_EAK
+    Library_Send_EAK
+
+Send_APP
+    Library_Send_APP
+
 Send_Negotiated_SYN_ACK
     Library_Send_Negotiated_SYN_ACK
+
+Send_BAD_SOP_PKT
+    Library_Send_BAD_SOP_PKT
+
+Send_BAD_PL_PKT
+    Library_Send_BAD_PL_PKT
+
+Send_BAD_PAN_PKT
+    Library_Send_BAD_PAN_PKT
 
 Reply_SYN
     Library_Reply_SYN
@@ -145,14 +166,13 @@ Receive Matched SYN ACK In Time
 
 *** Keywords ***
 MCU_Suite_Setup
-    # Set MCU Default Param       &{Default MCU SYN Param}
-    # Set MCU Negotiated Param    &{Negotiate MCU Param}
     Library_Open_Transport
 
 MCU_Suite_Teardown
     Library_Close_Transport
 
 SoC_Suite_Setup
+    Library_Reset_For_Soc
     Library_Open_Transport
 
 SoC_Suite_Teardown

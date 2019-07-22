@@ -38,14 +38,14 @@ class RobotTimeoutError(TimeoutError):
 
 
 # def Library_Send_RST_To_Remote():
-#     skdebug('Library_Send_RST_To_Remote')
+#     skdebug('[Library] Send_RST_To_Remote')
 #     global Valid_RST_Header_param
 #     packet = generate_header_with_param(**Valid_RST_Header_param)
 #     send_packet_to_remote(packet)
 
 
 # def Library_Send_SYN_To_Soc(**param):
-#     skdebug('Library_Send_SYN_Packet_To_Soc')
+#     skdebug('[Library] Send_SYN_Packet_To_Soc')
 #     payload = generate_syn_payload_with_param(**param)
 #     skdebug('type(payload):', type(payload))
 #     payload_len = len(payload)
@@ -60,7 +60,7 @@ class RobotTimeoutError(TimeoutError):
 
 
 # def Library_Send_SYN_ACK_To_SoC(psn):
-#     skdebug('Library_Send_SYN_ACK_To_SoC')
+#     skdebug('[Library] Send_SYN_ACK_To_SoC')
 #     global MCU_Negotiated_SYN_Param
 #     param = copy.deepcopy(MCU_Negotiated_SYN_Param)
 #     param['PacketAckNum'] = int(psn)
@@ -98,13 +98,13 @@ class RobotTimeoutError(TimeoutError):
 
 
 # def Library_Get_PSN_From_Param(**param):
-#     skdebug('Library_Get_PSN_From_Param')
+#     skdebug('[Library] Get_PSN_From_Param')
 #     skdebug(sys._getframe().f_code.co_filename)
 #     return param['PacketSeqNum']
 
 
 # def Library_MCU_Can_Accept_SYN_Param(**param):
-#     skdebug('Library_MCU_Can_Accept_SYN_Param')
+#     skdebug('[Library] MCU_Can_Accept_SYN_Param')
 #     skdebug('syn_param:', param)
 #     # for name, value in param.items():
 #     #     skdebug('name:', name, 'value:', value)
@@ -112,13 +112,13 @@ class RobotTimeoutError(TimeoutError):
 
 
 # def Library_Hold_On_A_While():
-#     skdebug('Library_Hold_On_A_While begin')
+#     skdebug('[Library] Hold_On_A_While begin')
 #     time.sleep(5)
-#     skdebug('Library_Hold_On_A_While end')
+#     skdebug('[Library] Hold_On_A_While end')
 
 
 # def Library_Receive_SYN_ACK_In_Time(timeout=2, **param):
-#     skdebug('Library_Receive_SYN_ACK_In_Time')
+#     skdebug('[Library] Receive_SYN_ACK_In_Time')
 #     start_time = time.time()
 #     while True:
 #         packet = recv_packet_from_remote()
@@ -135,7 +135,7 @@ class RobotTimeoutError(TimeoutError):
 
 
 # def Library_SYN_Negotiated_Param_Can_Match(**recv_param):
-#     skdebug('Library_SYN_Negotiated_Param_Can_Match')
+#     skdebug('[Library] SYN_Negotiated_Param_Can_Match')
 #     global MCU_Negotiated_SYN_Param
 #     skdebug(recv_param)
 #     if(recv_param['LinkVersion'] == MCU_Negotiated_SYN_Param['LinkVersion'] and
@@ -148,13 +148,13 @@ class RobotTimeoutError(TimeoutError):
 
 
 # def Library_Receive_SYN_In_Time(timeout=2):
-#     skdebug('Library_Recvive_SYN_In_Time')
+#     skdebug('[Library] Recvive_SYN_In_Time')
 #     global Valid_SYN_Header_Param
 #     return received_specified_packet_in_time(timeout=2, **Valid_SYN_Header_Param)
 
 
 # def Library_Received_ACK_In_Time(timeout=2, **param):
-#     skdebug('Library_Received_ACK_In_Time')
+#     skdebug('[Library] Received_ACK_In_Time')
 #     skdebug('param:', param)
 #     global Valid_ACK_Header_Param
 #     ack_param = {**Valid_ACK_Header_Param, **{'PacketAckNum': param.get('PacketSeqNum')}}
@@ -164,7 +164,7 @@ class RobotTimeoutError(TimeoutError):
 
 
 # def Library_Receive_Nothing_In_Time(timeout=2):
-#     skdebug('Library_Receive_Nothing_In_Time')
+#     skdebug('[Library] Receive_Nothing_In_Time')
 #     start_time = time.time()
 #     while True:
 #         packet = recv_packet_from_remote()
@@ -173,12 +173,12 @@ class RobotTimeoutError(TimeoutError):
 #         cost_time = time.time()-start_time
 #         if(cost_time > float(timeout)):
 #             skdebug('timeout cost_time:', cost_time)
-#             skdebug('Library_Receive_Nothing_In_Time Succeed')
+#             skdebug('[Library] Receive_Nothing_In_Time Succeed')
 #             return True
 
 
 # def Library_Set_MCU_Default_Param(**param):
-#     skdebug('Library_Set_MCU_Default_Param')
+#     skdebug('[Library] Set_MCU_Default_Param')
 #     global MCU_Default_SYN_Param
 #     skdebug('param:', param)
 #     MCU_Default_SYN_Param.clear()
@@ -187,7 +187,7 @@ class RobotTimeoutError(TimeoutError):
 
 
 # def Library_Set_MCU_Negotiated_Param(**param):
-#     skdebug('Library_Set_MCU_Negotiated_Param')
+#     skdebug('[Library] Set_MCU_Negotiated_Param')
 #     global MCU_Negotiated_SYN_Param
 #     skdebug('param:', param)
 #     MCU_Negotiated_SYN_Param.clear()
@@ -196,85 +196,157 @@ class RobotTimeoutError(TimeoutError):
 
 def Library_Open_Transport():
     session: LinkSession = LinkSession.GetInstance()
-    skdebug('Library_Open_Transport begin, session:', session)
+    skdebug('[Library] Open_Transport begin')
     session.OpenPort()
 
 
 def Library_Close_Transport():
     session: LinkSession = LinkSession.GetInstance()
-    skdebug('Library_Close_Transport begin, session:', session)
+    skdebug('[Library] Close_Transport begin')
     session.ClosePort()
+
+
+def Library_Reset_For_Soc():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Reset_For_Soc begin')
+    session.Reset(role=LinkRole.SoC)
+
+
+def Library_Reset_For_MCU():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Reset_For_MCU begin')
+    session.Reset(role=LinkRole.MCU)
 
 
 def Library_Update_SYN_Negotiable_Param():
     session: LinkSession = LinkSession.GetInstance()
-    skdebug('Library_Update_SYN_Negotiable_Param begin, session:', session)
-    session.UpdateSynNegotiableParam(500, 30, 5, 4)
+    skdebug('[Library] Update_SYN_Negotiable_Param begin')
+    session.UpdateSynNegotiableParam()
+
+
+def Library_Update_Invalid_SYN_Negotiable_Param():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Update_Invalid_SYN_Negotiable_Param begin')
+    session.UpdateSynNegotiableParam(rt=10)
 
 
 def Library_Send_RST():
     session: LinkSession = LinkSession.GetInstance()
-    skdebug('Library_Send_RST begin, session:', session)
+    skdebug('[Library] Send_RST begin')
     session.SendRst()
+
+
+def Library_Send_EAK():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Send_EAK begin')
+    session.SendEak()
+
+
+def Library_Send_SYN():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Send_SYN begin')
+    session.SendSyn()
+
+
+def Library_Send_ACK():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Send_ACK begin')
+    session.SendAck()
 
 
 def Library_Send_NAK():
     session: LinkSession = LinkSession.GetInstance()
-    skdebug('Library_Send_NAK begin, session:', session)
+    skdebug('[Library] Send_NAK begin')
     session.SendNak()
+
+
+def Library_Send_APP():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Send_APP begin')
+    session.SendApp()
+
+
+def Library_Send_BAD_SOP_PKT():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Send_BAD_SOP_PKT begin')
+    session.SendBadPkt(BadPktType.BAD_SOP)
+
+
+def Library_Send_BAD_PL_PKT():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Send_BAD_PL_PKT begin')
+    session.SendBadPkt(BadPktType.BAD_PL)
+
+
+def Library_Send_BAD_PAN_PKT():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Send_BAD_PAN_PKT begin')
+    session.SendBadPkt(BadPktType.BAD_PAN)
 
 
 def Library_Received_Acceptable_SYN_In_Time():
     session: LinkSession = LinkSession.GetInstance()
-    skdebug('Library_Received_Acceptable_SYN_In_Time begin, session:', session)
+    skdebug('[Library] Received_Acceptable_SYN_In_Time begin')
     syn_pkt_obj = session.RecviveSyn(timeout=2)
     session.StoreSyn(syn_pkt_obj)
     lsp_obj = LinkSynPayload(payload_bytes=syn_pkt_obj.mPayloadBytes)
     if not session.CanAccpetSynParam(lsp_obj):
-        raise RobotRecvInvalidData
+        skdebug('not a acceptable syn param')
+        raise RobotTestFlowException
 
 
 def Library_Received_Acceptable_SYN_ACK_In_Time():
     session: LinkSession = LinkSession.GetInstance()
-    skdebug('Library_Received_Acceptable_SYN_In_Time begin, session:', session)
+    skdebug('[Library] Received_Acceptable_SYN_In_Time begin')
     syn_pkt_obj = session.RecviveSynAck(timeout=2)
     session.StoreSyn(syn_pkt_obj)
     lsp_obj = LinkSynPayload(payload_bytes=syn_pkt_obj.mPayloadBytes)
     if not session.CanAccpetSynParam(lsp_obj):
-        raise RobotRecvInvalidData
+        skdebug('not a acceptable syn param')
+        raise RobotTestFlowException
 
 
 def Library_Received_Negotiable_SYN_In_Time():
     session: LinkSession = LinkSession.GetInstance()
-    skdebug('Library_Received_Negotiable_SYN_In_Time begin, session:', session)
+    skdebug('[Library] Received_Negotiable_SYN_In_Time begin')
     syn_pkt_obj = session.RecviveSyn(timeout=2)
     session.StoreSyn(syn_pkt_obj)
     lsp_obj = LinkSynPayload(payload_bytes=syn_pkt_obj.mPayloadBytes)
     if not session.IsNegotiableSynParam(lsp_obj):
-        raise RobotRecvInvalidData
+        skdebug('not a negotiable syn param')
+        raise RobotTestFlowException
+
+
+def Library_Received_Repeat_SYN_In_Time():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Received_Repeat_SYN_In_Time begin')
+    syn_pkt_obj = session.RecviveSyn(timeout=2)
+    lsp_obj = LinkSynPayload(payload_bytes=syn_pkt_obj.mPayloadBytes)
+    if not session.IsRepeatSynParam(lsp_obj):
+        raise RobotTestFlowException
 
 
 def Library_Reply_SYN():
     session: LinkSession = LinkSession.GetInstance()
-    skdebug('Library_Reply_SYN begin, session:', session)
+    skdebug('[Library] Reply_SYN begin')
     return session.ReplySyn()
 
 
 def Library_Send_Negotiated_SYN_ACK():
     session: LinkSession = LinkSession.GetInstance()
-    skdebug('Library_Send_Negotiated_SYN_ACK begin, session:', session)
+    skdebug('[Library] Send_Negotiated_SYN_ACK begin')
     return session.ForceNegotiateSyn()
 
 
 def Library_Received_ACK_In_Time():
     session: LinkSession = LinkSession.GetInstance()
-    skdebug('Library_Received_ACK_In_Time begin, session:', session)
+    skdebug('[Library] Received_ACK_In_Time begin')
     return session.RecviveAck(timeout=2)
 
 
 def Library_Received_Nothing_In_Time():
     session: LinkSession = LinkSession.GetInstance()
-    skdebug('Library_Received_Nothing_In_Time begin, session:', session)
+    skdebug('[Library] Received_Nothing_In_Time begin')
     return session.RecviveNothing(timeout=2)
 
 # def packet_param_match(expectation: dict, received: dict):
@@ -309,75 +381,9 @@ def Library_Received_Nothing_In_Time():
 #             raise RobotTimeoutError
 
 
-def test_syn_once_success():
-    try:
-        Library_Open_Transport()
-        Library_Send_RST()
-        Library_Received_Acceptable_SYN_In_Time()
-        Library_Reply_SYN()
-        Library_Received_ACK_In_Time()
-        Library_Received_Nothing_In_Time()
-        skdebug('test_syn_once_success succeed')
-        LinkSession.GetInstance(LinkRole.MCU).ClosePort()
-    except BaseException as e:
-        skdebug('catched a except, quit')
-        logging.exception(e)
-        LinkSession.GetInstance(LinkRole.MCU).ClosePort()
-        quit()
-    else:
-        pass
-    time.sleep(1)
-    LinkSession.GetInstance(LinkRole.MCU).ClosePort()
-
-
-def test_syn_twice_success():
-    try:
-        Library_Open_Transport()
-        Library_Update_SYN_Negotiable_Param()
-        Library_Send_RST()
-        Library_Received_Negotiable_SYN_In_Time()
-        Library_Reply_SYN()
-        Library_Received_Acceptable_SYN_ACK_In_Time()
-        Library_Reply_SYN()
-        Library_Received_ACK_In_Time()
-        Library_Received_Nothing_In_Time()
-        skdebug('test_syn_twice_success succeed')
-        LinkSession.GetInstance(LinkRole.MCU).ClosePort()
-    except BaseException as e:
-        skdebug('catched a except, quit')
-        logging.exception(e)
-        LinkSession.GetInstance(LinkRole.MCU).ClosePort()
-        quit()
-    else:
-        pass
-    time.sleep(1)
-    LinkSession.GetInstance(LinkRole.MCU).ClosePort()
-
-
-def test_syn_once_insert_nak():
-    try:
-        Library_Open_Transport()
-        Library_Send_RST()
-        Library_Received_Acceptable_SYN_In_Time()
-        Library_Send_NAK()
-        Library_Received_Acceptable_SYN_In_Time()
-        Library_Reply_SYN()
-        Library_Received_ACK_In_Time()
-        Library_Received_Nothing_In_Time()
-        skdebug('test_syn_once_insert_nak succeed')
-        LinkSession.GetInstance(LinkRole.MCU).ClosePort()
-    except BaseException as e:
-        skdebug('catched a except, quit')
-        logging.exception(e)
-        LinkSession.GetInstance(LinkRole.MCU).ClosePort()
-        quit()
-    else:
-        pass
-    time.sleep(1)
-    LinkSession.GetInstance(LinkRole.MCU).ClosePort()
-
-
 if __name__ == "__main__":
     # test_syn_once_success()
     # test_syn_twice_success()
-    test_syn_once_insert_nak()
+    # test_syn_once_insert_nak()
+    # test_syn_twice_fail()
+    pass

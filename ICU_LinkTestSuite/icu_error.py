@@ -5,3 +5,6 @@ class RobotTimeoutError(TimeoutError):
 
 class RobotRecvInvalidData(RuntimeError):
     ROBOT_CONTINUE_ON_FAILURE = False
+
+class RobotTestFlowException(RuntimeError):
+    ROBOT_CONTINUE_ON_FAILURE = False

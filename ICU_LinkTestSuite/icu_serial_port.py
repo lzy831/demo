@@ -47,7 +47,7 @@ class SerialPort(object):
             self.mRecvThread.start()
             skdebug('serial task and queue create succeed')
         else:
-            skdebug('serial port was already open')
+            skdebug('serial port was already opened')
 
     def Close(self):
         if self.mSerialPortObj != None:
@@ -57,22 +57,25 @@ class SerialPort(object):
             skdebug('ready to close thread')
             skdebug('SendThread alive', self.mSendThread.is_alive())
             skdebug('RecvThread alive', self.mRecvThread.is_alive())
-        if self.mRecvThread != None and self.mRecvThread.is_alive():
-            self.mRecvThreadStopFlag = True
-            self.mRecvThread.join()
-            skdebug('mRecvThread join ok')
-            skdebug('SendThread alive', self.mSendThread.is_alive())
-            skdebug('mRecvThread alive', self.mRecvThread.is_alive())
-        if self.mSendThread != None and self.mSendThread.is_alive():
-            self.mSendThreadStopFlag = True
-            self.mSendThread.join()
-            skdebug('SendThread join ok')
-            skdebug('SendThread alive', self.mSendThread.is_alive())
-            skdebug('mRecvThread alive', self.mRecvThread.is_alive())
-        skdebug('will close serial ok')
-        self.mSerialPortObj.close()
-        skdebug('close serial ok')
-        skdebug('close serial transport ok')
+            if self.mRecvThread != None and self.mRecvThread.is_alive():
+                self.mRecvThreadStopFlag = True
+                self.mRecvThread.join()
+                skdebug('mRecvThread join ok')
+                skdebug('mRecvThread alive', self.mRecvThread.is_alive())
+                self.mRecvThread = None
+            if self.mSendThread != None and self.mSendThread.is_alive():
+                self.mSendThreadStopFlag = True
+                self.mSendThread.join()
+                skdebug('SendThread join ok')
+                skdebug('SendThread alive', self.mSendThread.is_alive())
+                self.mSendThread = None
+            skdebug('will close serial')
+            self.mSerialPortObj.close()
+            self.mSerialPortObj = None
+            skdebug('close serial ok')
+            skdebug('close serial transport ok')
+        else:
+            skdebug('serial port was already closed')
 
     def SendFunc(self):
         # global LINK_PKT_MAX_PSN
@@ -145,7 +148,7 @@ class SerialPort(object):
                     continue
 
                 skdebug('!!!!!!!!!!!!!!!!!!!!!! recv a pkt:')
-                skdebug('header info:', header_obj.info_string())
+                # skdebug('header info:', header_obj.info_string())
 
                 payload_data = bytes()
                 payload_len = header_obj.mPacketLength - LinkSpec.cLinkPacketHeaderLength

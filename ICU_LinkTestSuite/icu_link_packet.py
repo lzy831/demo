@@ -1,10 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import random
 import struct
+from enum import Enum
 from collections import namedtuple
 from icu_debug import *
 from icu_checksum import *
+
+
+class BadPktType(Enum):
+    BAD_SOP = 0
+    BAD_PL = 1
+    BAD_PAN = 2
 
 
 class LinkSpec(object):
@@ -79,6 +87,7 @@ class LinkSynPayload(object):
         skdebug('mPayloadChecksum:', hex(self.mPayloadChecksum))
 
     def update_with_bytes(self, payload_bytes: bytes):
+        skdebug('LinkSynPayload update_with_bytes', payload_bytes.hex())
         self.mPayloadTuple = LinkSpec.cLinkSynPayloadTupleType._make(struct.unpack(LinkSpec.cLinkSynPayloadFormat, payload_bytes))
         self.mLinkVersion = self.mPayloadTuple.LinkVersion
         self.mMaxNumOfOutStdPkts = self.mPayloadTuple.MaxNumOfOutStdPkts
@@ -151,9 +160,11 @@ class LinkPacketHeader(object):
             self.update_with_dict(header_dict)
 
     def update_with_bytes(self, header_bytes: bytes):
+        skdebug('LinkPacketHeader update with bytes')
         self.mHeaderTuple = LinkSpec.cLinkPacketHeaderTupleType._make(struct.unpack(LinkSpec.cLinkPacketHeaderFormat, header_bytes))
         self.mStartOfPacket = self.mHeaderTuple.StartOfPacket
         self.mPacketLength = self.mHeaderTuple.PacketLength
+        skdebug('mPacketLength:', self.mPacketLength)
         self.mControlByte = ControlByte(cb_int=self.mHeaderTuple.ControlByte)
         self.mPacketSeqNum = self.mHeaderTuple.PacketSeqNum
         self.mPacketAckNum = self.mHeaderTuple.PacketAckNum
@@ -161,9 +172,10 @@ class LinkPacketHeader(object):
         self.mHeaderChecksum = self.mHeaderTuple.HeaderChecksum
 
     def update_with_dict(self, header_dict: dict):
-        skdebug('update with dict')
+        skdebug('LinkPacketHeader update with dict')
         self.mStartOfPacket = header_dict.get(LinkSpec.cHFeild_SOP, 0xAA55)
         self.mPacketLength = header_dict.get(LinkSpec.cHFeild_PL, 0)
+        skdebug('mPacketLength:', self.mPacketLength)
         self.mControlByte = ControlByte(cb_dict=header_dict)
         skdebug('ControlByte:', bin(self.mControlByte.mValue))
         self.mPacketSeqNum = header_dict.get(LinkSpec.cHFeild_PSN, 0)
@@ -209,25 +221,78 @@ class LinkPacket(object):
         # skdebug('res type:', type(res))
         # skdebug('res.to_bytes():', res.to_bytes(length=2,byteorder='big',signed=False))
         # skdebug('res.to_bytes() type:', type(res.to_bytes(length=2,byteorder='big',signed=False)))
-        return data + res.to_bytes(length=2,byteorder='big',signed=False)
+        return data + res.to_bytes(length=2, byteorder='big', signed=False)
 
     def gen_std_rst_packet():
         return LinkPacket(header_bytes=LinkPacketHeader(header_dict={LinkSpec.cHFeild_RST: 1}).to_bytes())
 
-    def gen_nak_packet():
-        header = LinkPacket(header_bytes=LinkPacketHeader(header_dict={LinkSpec.cHFeild_NAK: 1}).to_bytes())
+    def gen_random_eak_packet():
+        header = LinkPacketHeader(header_dict={
+            LinkSpec.cHFeild_EAK: 1,
+            LinkSpec.cHFeild_ACK: 1})
         pl_bytes = LinkPacket.gen_random_payload()
-        skdebug('payload:', pl_bytes)
         return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes)
 
-    def gen_syn_ack_packet(param_dict: dict):
-        header = LinkPacketHeader(header_dict={LinkSpec.cHFeild_PAN: param_dict[LinkSpec.cHFeild_PAN],
-                                               LinkSpec.cHFeild_PSN: param_dict[LinkSpec.cHFeild_PSN],
-                                               LinkSpec.cHFeild_SYN: 1, LinkSpec.cHFeild_ACK: 1})
+    def gen_random_app_packet(param_dict: dict):
+        random_si = random.randint(1, 10)
+        header = LinkPacketHeader(header_dict={
+            LinkSpec.cHFeild_SI: random_si,
+            LinkSpec.cHFeild_PSN: param_dict[LinkSpec.cHFeild_PSN]})
+        pl_bytes = LinkPacket.gen_random_payload()
+        return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes)
+
+    def gen_nak_packet():
+        header = LinkPacketHeader(header_dict={LinkSpec.cHFeild_NAK: 1})
+        pl_bytes = LinkPacket.gen_random_payload()
+        return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes)
+
+    def gen_ack_packet(param_dict: dict):
+        return LinkPacket(header_bytes=LinkPacketHeader(header_dict={
+            LinkSpec.cHFeild_ACK: 1,
+            LinkSpec.cHFeild_PAN: param_dict[LinkSpec.cHFeild_PAN]}).to_bytes())
+
+    def gen_syn_packet(param_dict: dict):
+        header = LinkPacketHeader(header_dict={
+            LinkSpec.cHFeild_SYN: 1,
+            LinkSpec.cHFeild_PSN: param_dict[LinkSpec.cHFeild_PSN]})
         payload = LinkSynPayload(payload_dict=param_dict)
         return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=payload.to_bytes())
 
-    def __init__(self, packet_bytes=None, header_bytes=None, payload_bytes=None):
+    def gen_syn_ack_packet(param_dict: dict):
+        header = LinkPacketHeader(header_dict={
+            LinkSpec.cHFeild_PAN: param_dict[LinkSpec.cHFeild_PAN],
+            LinkSpec.cHFeild_PSN: param_dict[LinkSpec.cHFeild_PSN],
+            LinkSpec.cHFeild_SYN: 1, LinkSpec.cHFeild_ACK: 1})
+        payload = LinkSynPayload(payload_dict=param_dict)
+        return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=payload.to_bytes())
+
+    def gen_bad_packet(type):
+        if type == BadPktType.BAD_SOP:
+            skdebug('BAD_SOP')
+            random_sop = random.randint(0, 65535)
+            header = LinkPacketHeader(header_dict={LinkSpec.cHFeild_SOP: random_sop})
+            pl_bytes = LinkPacket.gen_random_payload()
+            return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes)
+        elif type == BadPktType.BAD_PL:
+            skdebug('BAD_PL')
+            random_pl = random.randint(256, 65535)
+            # skdebug('random_pl:', random_pl)
+            header = LinkPacketHeader(header_dict={LinkSpec.cHFeild_PL: random_pl})
+            pl_bytes = LinkPacket.gen_random_payload()
+            return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes, auto_update_pl=False)
+        elif type == BadPktType.BAD_PAN:
+            skdebug('BAD_PL')
+            random_pan = random.randint(0, 255)
+            # skdebug('random_pan:', random_pan)
+            header = LinkPacketHeader(header_dict={LinkSpec.cHFeild_PAN: random_pan})
+            pl_bytes = LinkPacket.gen_random_payload()
+            return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes, auto_update_pl=False)
+
+    def __init__(self, packet_bytes=None, header_bytes=None, payload_bytes=None, auto_update_pl=True):
+        if auto_update_pl:
+            self.mAutoUpdatePL = True
+        else:
+            self.mAutoUpdatePL = False
         if packet_bytes != None:
             self.update_packet_with_bytes(packet_bytes)
         elif header_bytes != None:
@@ -240,7 +305,8 @@ class LinkPacket(object):
                 self.update_packet_length(len(header_bytes))
 
     def update_packet_length(self, pkt_len):
-        self.mHeader.update_packet_length(pkt_len)
+        if self.mAutoUpdatePL:
+            self.mHeader.update_packet_length(pkt_len)
 
     def update_packet_with_bytes(self, packet_bytes: bytes):
         self.update_header_with_bytes(packet_bytes[:10])
@@ -267,7 +333,7 @@ class LinkPacket(object):
             skdebug('mPayloadChecksum:', hex(self.mPayloadChecksum))
             if self.is_syn_packet() or self.is_syn_ack_packet():
                 payload_info = LinkSynPayload(payload_bytes=self.mPayloadBytes).info_string()
-            elif is_eak_packet():
+            elif self.is_eak_packet():
                 pass
             else:
                 payload_info = 'PD: {}  PC: 0x{:04X}'.format(self.mPayloadData.hex(), self.mPayloadChecksum)
@@ -312,7 +378,8 @@ class LinkPacket(object):
                 self.mHeader.mControlByte.mEAK == 0 and \
                 self.mHeader.mControlByte.mACK == 1 and \
                 self.mHeader.mControlByte.mNAK == 0 and \
-                self.mHeader.mControlByte.mRST == 0:
+                self.mHeader.mControlByte.mRST == 0 and \
+                self.mHeader.mPacketSeqNum == 0:
             return True
         return False
 
