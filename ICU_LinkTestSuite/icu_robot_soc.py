@@ -298,6 +298,140 @@ def SoC_SYN_ONCE_IE002():
 ##############################################################################################################
 
 
+def SoC_SYN_ONCE_FC002():
+    skdebug('~~~~~~~~~~ SoC_SYN_ONCE_FC002 begin')
+    try:
+        Library_Reset_For_MCU()
+        Library_Open_Transport()
+        Library_Send_RST()
+        Library_Received_Acceptable_SYN_In_Time()
+        Library_Reply_SYN()
+        Library_Received_ACK_In_Time()
+        Library_Retransmit_SYN_ACK()
+        Library_Received_ACK_In_Time()
+        Library_Received_Nothing_In_Time()
+        Library_Close_Transport()
+        skdebug('~~~~~~~~~~ SoC_SYN_ONCE_FC002 succeed')
+    except BaseException as e:
+        skdebug('catched a except, quit')
+        logging.exception(e)
+        Library_Close_Transport()
+        quit()
+    else:
+        pass
+    time.sleep(1)
+    Library_Close_Transport()
+
+
+def SoC_SYN_ONCE_FC003():
+    skdebug('~~~~~~~~~~ SoC_SYN_ONCE_FC003 begin')
+    try:
+        Library_Reset_For_MCU()
+        Library_Open_Transport()
+        Library_Send_RST()
+        Library_Received_Acceptable_SYN_In_Time()
+        Library_Send_OverLength_PKT()
+        Library_Received_Acceptable_SYN_In_Time()
+        Library_Reply_SYN()
+        Library_Send_OverLength_PKT()
+        Library_Received_ACK_In_Time()
+        Library_Received_Nothing_In_Time()
+        Library_Close_Transport()
+        skdebug('~~~~~~~~~~ SoC_SYN_ONCE_FC003 succeed')
+    except BaseException as e:
+        skdebug('catched a except, quit')
+        logging.exception(e)
+        Library_Close_Transport()
+        quit()
+    else:
+        pass
+    time.sleep(1)
+    Library_Close_Transport()
+
+##############################################################################################################
+def SoC_APP_ACK_N001():
+    skdebug('~~~~~~~~~~ SoC_APP_ACK_N001 begin')
+    try:
+        Library_Reset_For_MCU()
+        Library_Open_Transport()
+        ###############################
+        Library_MCU_SYN()
+        Library_Test_Start()
+        Library_Test_Send_NoNAK_PKT()
+        Library_Received_ACK_In_Time()
+        Library_Received_Nothing_In_Time()
+        ###############################
+        Library_Close_Transport()
+        skdebug('~~~~~~~~~~ SoC_SYN_ONCE_FC003 succeed')
+    except BaseException as e:
+        skdebug('catched a except, quit')
+        logging.exception(e)
+        Library_Close_Transport()
+        quit()
+    else:
+        pass
+    time.sleep(1)
+    Library_Close_Transport()
+
+
+def SoC_APP_ACK_N002():
+    skdebug('~~~~~~~~~~ SoC_APP_ACK_N002 begin')
+    try:
+        Library_Reset_For_MCU()
+        Library_Open_Transport()
+        ###############################
+        Library_MCU_SYN()
+        Library_Test_Start()
+        Library_Test_Send_NoNAK_PKT()
+        Library_Test_Send_NoNAK_PKT()
+        Library_Test_Send_NoNAK_PKT()
+        Library_Test_Send_NoNAK_PKT()
+        Library_Test_Send_NoNAK_PKT()
+        Library_Received_ACK_In_Time()
+        Library_Received_Nothing_In_Time()
+        ###############################
+        Library_Close_Transport()
+        skdebug('~~~~~~~~~~ SoC_APP_ACK_N002 succeed')
+    except BaseException as e:
+        skdebug('catched a except, quit')
+        logging.exception(e)
+        Library_Close_Transport()
+        quit()
+    else:
+        pass
+    time.sleep(1)
+    Library_Close_Transport()
+
+
+##############################################################################################################
+def SoC_APP_ACK_I0001():
+    skdebug('~~~~~~~~~~ SoC_APP_ACK_I0001 begin')
+    try:
+        Library_Reset_For_MCU()
+        Library_Open_Transport()
+        ###############################
+        Library_MCU_SYN()
+        Library_Test_Start()
+        Library_Test_Send_NoNAK_PKT()
+        Library_Received_ACK_In_Time()
+        Library_Send_SYN()
+        Library_Received_ACK_In_Time()
+        Library_Received_Nothing_In_Time()
+        ###############################
+        Library_Close_Transport()
+        skdebug('~~~~~~~~~~ SoC_APP_ACK_I0001 succeed')
+    except BaseException as e:
+        skdebug('catched a except, quit')
+        logging.exception(e)
+        Library_Close_Transport()
+        quit()
+    else:
+        pass
+    time.sleep(1)
+    Library_Close_Transport()
+
+
+##############################################################################################################
 if __name__ == "__main__":
     # SoC_SYN_ONCE_N0001()
 
@@ -313,3 +447,13 @@ if __name__ == "__main__":
 
     # SoC_SYN_ONCE_IE001()
     # SoC_SYN_ONCE_IE002()
+
+    # SoC_SYN_ONCE_FC002() # fail
+    # SoC_SYN_ONCE_FC003() # fail
+
+    # SoC_APP_ACK_N001()
+    # SoC_APP_ACK_N002()
+
+    SoC_APP_ACK_I0001()
+
+    pass

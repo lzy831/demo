@@ -122,6 +122,10 @@ Send_BAD_PAN_PKT
 Reply_SYN
     Library_Reply_SYN
 
+MCU_SYN
+    Library_MCU_SYN
+
+
 Received_Acceptable_SYN_In_Time
     Library_Received_Acceptable_SYN_In_Time
 

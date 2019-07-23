@@ -284,11 +284,16 @@ def Library_Send_BAD_PAN_PKT():
     session.SendBadPkt(BadPktType.BAD_PAN)
 
 
+def Library_Send_OverLength_PKT():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Send_OverLength_PKT begin')
+    session.SendBadPkt(BadPktType.OVER_MAX_LEN)
+
+
 def Library_Received_Acceptable_SYN_In_Time():
     session: LinkSession = LinkSession.GetInstance()
     skdebug('[Library] Received_Acceptable_SYN_In_Time begin')
     syn_pkt_obj = session.RecviveSyn(timeout=2)
-    session.StoreSyn(syn_pkt_obj)
     lsp_obj = LinkSynPayload(payload_bytes=syn_pkt_obj.mPayloadBytes)
     if not session.CanAccpetSynParam(lsp_obj):
         skdebug('not a acceptable syn param')
@@ -299,7 +304,6 @@ def Library_Received_Acceptable_SYN_ACK_In_Time():
     session: LinkSession = LinkSession.GetInstance()
     skdebug('[Library] Received_Acceptable_SYN_In_Time begin')
     syn_pkt_obj = session.RecviveSynAck(timeout=2)
-    session.StoreSyn(syn_pkt_obj)
     lsp_obj = LinkSynPayload(payload_bytes=syn_pkt_obj.mPayloadBytes)
     if not session.CanAccpetSynParam(lsp_obj):
         skdebug('not a acceptable syn param')
@@ -310,7 +314,6 @@ def Library_Received_Negotiable_SYN_In_Time():
     session: LinkSession = LinkSession.GetInstance()
     skdebug('[Library] Received_Negotiable_SYN_In_Time begin')
     syn_pkt_obj = session.RecviveSyn(timeout=2)
-    session.StoreSyn(syn_pkt_obj)
     lsp_obj = LinkSynPayload(payload_bytes=syn_pkt_obj.mPayloadBytes)
     if not session.IsNegotiableSynParam(lsp_obj):
         skdebug('not a negotiable syn param')
@@ -332,6 +335,12 @@ def Library_Reply_SYN():
     return session.ReplySyn()
 
 
+def Library_Retransmit_SYN_ACK():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Retransmit_SYN_ACK begin')
+    return session.RetransmitSynAck()
+
+
 def Library_Send_Negotiated_SYN_ACK():
     session: LinkSession = LinkSession.GetInstance()
     skdebug('[Library] Send_Negotiated_SYN_ACK begin')
@@ -348,6 +357,32 @@ def Library_Received_Nothing_In_Time():
     session: LinkSession = LinkSession.GetInstance()
     skdebug('[Library] Received_Nothing_In_Time begin')
     return session.RecviveNothing(timeout=2)
+
+def Library_SYN_Completed():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] SYN_Completed begin')
+    return session.SynCompeted()
+
+def Library_Test_Start():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Test_Start begin')
+    return session.TestStart()
+
+
+def Library_Test_Send_NoNAK_PKT():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Test_Send_NoNAK_PKT begin')
+    return session.TestSendNoNAK()
+
+
+def Library_MCU_SYN():
+    skdebug('[Library] SYN begin')
+    Library_Send_RST()
+    Library_Received_Acceptable_SYN_In_Time()
+    Library_Reply_SYN()
+    Library_Received_ACK_In_Time()
+    Library_Received_Nothing_In_Time()
+    skdebug('[Library] SYN end')
 
 # def packet_param_match(expectation: dict, received: dict):
 #     for key, value in expectation.items():
@@ -379,8 +414,6 @@ def Library_Received_Nothing_In_Time():
 #         if(cost_time > float(timeout)):
 #             skdebug('timeout cost_time:', cost_time)
 #             raise RobotTimeoutError
-
-
 if __name__ == "__main__":
     # test_syn_once_success()
     # test_syn_twice_success()
