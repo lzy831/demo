@@ -236,16 +236,22 @@ def Library_Send_RST():
     session.SendRst()
 
 
-def Library_Send_EAK():
+def Library_Send_Random_EAK():
     session: LinkSession = LinkSession.GetInstance()
     skdebug('[Library] Send_EAK begin')
-    session.SendEak()
+    session.SendRandomEak()
 
 
 def Library_Send_SYN():
     session: LinkSession = LinkSession.GetInstance()
     skdebug('[Library] Send_SYN begin')
     session.SendSyn()
+
+
+def Library_Send_SYN_ACK():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Send_SYN_ACK begin')
+    session.SendSynAck()
 
 
 def Library_Send_ACK():
@@ -332,57 +338,70 @@ def Library_Received_Repeat_SYN_In_Time():
 def Library_Reply_SYN():
     session: LinkSession = LinkSession.GetInstance()
     skdebug('[Library] Reply_SYN begin')
-    return session.ReplySyn()
+    session.ReplySyn()
 
 
 def Library_Retransmit_SYN_ACK():
     session: LinkSession = LinkSession.GetInstance()
     skdebug('[Library] Retransmit_SYN_ACK begin')
-    return session.RetransmitSynAck()
+    session.RetransmitSynAck()
 
 
 def Library_Send_Negotiated_SYN_ACK():
     session: LinkSession = LinkSession.GetInstance()
     skdebug('[Library] Send_Negotiated_SYN_ACK begin')
-    return session.ForceNegotiateSyn()
+    session.ForceNegotiateSyn()
 
 
 def Library_Received_ACK_In_Time():
     session: LinkSession = LinkSession.GetInstance()
     skdebug('[Library] Received_ACK_In_Time begin')
-    return session.RecviveAck(timeout=2)
+    session.RecviveAck(timeout=2)
 
 
 def Library_Received_Nothing_In_Time():
     session: LinkSession = LinkSession.GetInstance()
     skdebug('[Library] Received_Nothing_In_Time begin')
-    return session.RecviveNothing(timeout=2)
+    session.RecviveNothing(timeout=2)
 
-def Library_SYN_Completed():
+def Library_Received_Test_NoNAK():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Received_Test_NoNAK begin')
+    session.RecviveTestNoNAK(timeout=2)
+
+def Library_SYN_Complete():
     session: LinkSession = LinkSession.GetInstance()
     skdebug('[Library] SYN_Completed begin')
-    return session.SynCompeted()
+    session.SynCompete()
+
 
 def Library_Test_Start():
     session: LinkSession = LinkSession.GetInstance()
     skdebug('[Library] Test_Start begin')
-    return session.TestStart()
+    session.TestStart()
 
 
 def Library_Test_Send_NoNAK_PKT():
     session: LinkSession = LinkSession.GetInstance()
     skdebug('[Library] Test_Send_NoNAK_PKT begin')
-    return session.TestSendNoNAK()
+    session.TestSendNoNAK()
+
+
+def Library_Test_Request_NoNAK_PKT():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Test_Request_NoNAK_PKT begin')
+    session.TestRequestNoNAK()
 
 
 def Library_MCU_SYN():
-    skdebug('[Library] SYN begin')
+    skdebug('[Library] MCU_SYN begin')
     Library_Send_RST()
     Library_Received_Acceptable_SYN_In_Time()
     Library_Reply_SYN()
     Library_Received_ACK_In_Time()
     Library_Received_Nothing_In_Time()
-    skdebug('[Library] SYN end')
+    Library_SYN_Complete()
+    skdebug('[Library] MCU_SYN end')
 
 # def packet_param_match(expectation: dict, received: dict):
 #     for key, value in expectation.items():

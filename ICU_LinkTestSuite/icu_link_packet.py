@@ -4,7 +4,7 @@
 import random
 import struct
 from enum import Enum
-from collections import namedtuple
+from icu_link_spec import *
 from icu_debug import *
 from icu_checksum import *
 
@@ -20,54 +20,7 @@ class TestPktType(Enum):
     TEST_START = 0
     TEST_STOP = 1
     TEST_DATA_NONAK = 2
-
-class LinkSpec(object):
-    cBIT_SYN = 7
-    cBIT_ACK = 6
-    cBIT_EAK = 5
-    cBIT_RST = 4
-    cBIT_NAK = 3
-    cBIT_RES2 = 2
-    cBIT_RES1 = 1
-    cBIT_RES0 = 0
-
-    cHFeild_SOP = 'StartOfPacket'
-    cHFeild_PL = 'PacketLength'
-    cHFeild_CB = 'ControlByte'
-    cHFeild_SYN = 'SYN'
-    cHFeild_ACK = 'ACK'
-    cHFeild_EAK = 'EAK'
-    cHFeild_RST = 'RST'
-    cHFeild_NAK = 'NAK'
-    cHFeild_RES2 = 'RES2'
-    cHFeild_RES1 = 'RES1'
-    cHFeild_RES0 = 'RES0'
-    cHFeild_PSN = 'PacketSeqNum'
-    cHFeild_PAN = 'PacketAckNum'
-    cHFeild_SI = 'SessionId'
-    cHFeild_HC = 'HeaderChecksum'
-
-    cLinkPacketSYNLength = 2
-    cLinkPacketHeaderLength = 10
-    cLinkPacketHeaderFormat = '>HHBBBBH'
-    cLinkPacketHeaderWithoutChecksumFormat = '>HHBBBB'
-    # cLinkPacketHeaderField = 'StartOfPacket, PacketLength, ControlByte, PacketSeqNum, PacketAckNum, SessionId, HeaderChecksum'
-    cLinkPacketHeaderField = cHFeild_SOP+' '+cHFeild_PL+' '+cHFeild_CB+' '+cHFeild_PSN+' '+cHFeild_PAN+' '+cHFeild_SI+' '+cHFeild_HC
-    cLinkPacketHeaderTupleType = namedtuple('LinkPacketHeaderTuple', cLinkPacketHeaderField)
-
-    cHFeild_LV = 'LinkVersion'
-    cHFeild_MNOOSP = 'MaxNumOfOutStdPkts'
-    cHFeild_MRPL = 'MaxRecvPktLen'
-    cHFeild_RT = 'RetransTimeout'
-    cHFeild_CAT = 'CumAckTimeout'
-    cHFeild_MNOR = 'MaxNumOfRetrans'
-    cHFeild_MCA = 'MaxCumAck'
-    cHFeild_PC = 'PayloadChecksum'
-    cLinkSynPayloadLength = 12
-    cLinkSynPayloadFormat = '>BBHHHBBH'
-    cLinkSynPayloadWithoutCheckssumFormat = '>BBHHHBB'
-    cLinkSynPayloadField = cHFeild_LV+' '+cHFeild_MNOOSP+' '+cHFeild_MRPL+' '+cHFeild_RT+' '+cHFeild_CAT+' '+cHFeild_MNOR+' '+cHFeild_MCA+' '+cHFeild_PC
-    cLinkSynPayloadTupleType = namedtuple('LinkSynPayloadTuple', cLinkSynPayloadField)
+    TEST_REQUEST_NONAK = 3
 
 
 class LinkSynPayload(object):
@@ -241,13 +194,18 @@ class LinkPacket(object):
         # skdebug('res.to_bytes() type:', type(res.to_bytes(length=2,byteorder='big',signed=False)))
         return whole_data + res.to_bytes(length=2, byteorder='big', signed=False)
 
+    def gen_test_request_data_payload(count=1, maxsize=16):
+        return struct.pack(LinkSpec.cLinkTestSession_RequestData_TupleType,
+                           LinkSpec.cTestSession_CmdID_RequestData, count, maxsize)
+
     def gen_std_rst_packet():
         return LinkPacket(header_bytes=LinkPacketHeader(header_dict={LinkSpec.cHFeild_RST: 1}).to_bytes())
 
-    def gen_random_eak_packet():
+    def gen_random_eak_packet(param_dict: dict):
         header = LinkPacketHeader(header_dict={
             LinkSpec.cHFeild_EAK: 1,
-            LinkSpec.cHFeild_ACK: 1})
+            LinkSpec.cHFeild_ACK: 1,
+            LinkSpec.cHFeild_PAN: param_dict[LinkSpec.cHFeild_PAN]})
         pl_bytes = LinkPacket.gen_random_payload()
         return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes)
 
@@ -284,7 +242,7 @@ class LinkPacket(object):
         payload = LinkSynPayload(payload_dict=param_dict)
         return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=payload.to_bytes())
 
-    def gen_bad_packet(type, param_dict:dict=None):
+    def gen_bad_packet(type, param_dict: dict = None):
         if type == BadPktType.BAD_SOP:
             skdebug('BAD_SOP')
             random_sop = random.randint(0, 65535)
@@ -308,10 +266,10 @@ class LinkPacket(object):
         elif type == BadPktType.OVER_MAX_LEN:
             skdebug('OVER_MAX_LEN')
             header = LinkPacketHeader(header_dict={})
-            pl_bytes = LinkPacket.gen_random_payload(size=int(param_dict[LinkSpec.cHFeild_MRPL] *2/16))
+            pl_bytes = LinkPacket.gen_random_payload(size=int(param_dict[LinkSpec.cHFeild_MRPL] * 2/16))
             return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes)
 
-    def gen_test_packet(type, param_dict:dict=None):
+    def gen_test_packet(type, param_dict: dict = None):
         if type == TestPktType.TEST_START:
             skdebug('TEST_START')
             header = LinkPacketHeader(header_dict={LinkSpec.cHFeild_SI: 0x09})
@@ -324,7 +282,11 @@ class LinkPacket(object):
                 LinkSpec.cHFeild_PSN: param_dict[LinkSpec.cHFeild_PSN]})
             pl_bytes = LinkPacket.gen_random_payload()
             return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes)
-
+        elif type == TestPktType.TEST_REQUEST_NONAK:
+            header = LinkPacketHeader(header_dict={
+                LinkSpec.cHFeild_SI: 0x09})
+            pl_bytes = LinkPacket.gen_test_request_data_payload()
+            return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes)
 
     def __init__(self, packet_bytes=None, header_bytes=None, payload_bytes=None, auto_update_pl=True):
         if auto_update_pl:
@@ -421,11 +383,13 @@ class LinkPacket(object):
             return True
         return False
 
-    def is_need_ack_packet(self):
+    def is_nonak_packet(self):
         if self.is_syn_packet() or self.is_syn_ack_packet():
             return True
         elif self.is_ack_packet():
             return False
+        elif self.mHeader.mControlByte.mNAK == 0:
+            return True
 
     def is_eak_packet(self):
         return False

@@ -102,7 +102,7 @@ Send_NAK
     Library_Send_NAK
 
 Send_EAK
-    Library_Send_EAK
+    Library_Send_Random_EAK
 
 Send_APP
     Library_Send_APP
