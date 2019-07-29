@@ -110,6 +110,12 @@ Send_APP
 Send_Negotiated_SYN_ACK
     Library_Send_Negotiated_SYN_ACK
 
+Send_SYN_ACK
+    Library_Send_SYN_ACK
+
+Send_Random_EAK
+    Library_Send_Random_EAK
+
 Send_BAD_SOP_PKT
     Library_Send_BAD_SOP_PKT
 
@@ -125,7 +131,10 @@ Reply_SYN
 MCU_SYN
     Library_MCU_SYN
 
+Retransmit_SYN_ACK
+    Library_Retransmit_SYN_ACK
 
+##################################################################
 Received_Acceptable_SYN_In_Time
     Library_Received_Acceptable_SYN_In_Time
 
@@ -144,30 +153,21 @@ Received_Negotiable_SYN_In_Time
 Received_Acceptable_SYN_ACK_In_Time
     Library_Received_Acceptable_SYN_ACK_In_Time
 
+Received_Test_NoNAK
+    Library_Received_Test_NoNAK
+
+##################################################################
+Test_Start
+    Library_Test_Start
+
+Test_Send_NoNAK_PKT
+    Library_Test_Send_NoNAK_PKT
+
+Test_Request_NoNAK_PKT
+    Library_Test_Request_NoNAK_PKT
 
 
-
-
-
-
-
-Receive Matched SYN ACK In Time
-    [Arguments]                                 &{sent_syn_param}
-    &{recv_syn_ack_param}=                      Library_Received_ACK_In_Time     ${Default Timeout In Seconds}    &{sent_syn_param}
-    Library_SYN_Negotiated_Param_Can_Match      &{recv_syn_ack_param}
-    Return From Keyword                         &{recv_syn_ack_param}
-
-
-
-
-
-
-
-
-
-
-
-
+##################################################################
 *** Keywords ***
 MCU_Suite_Setup
     Library_Open_Transport
@@ -181,46 +181,3 @@ SoC_Suite_Setup
 
 SoC_Suite_Teardown
     Library_Close_Transport
-
-
-
-Send SYN To Soc
-    [Arguments]                 &{syn_param}
-    Library Send SYN To Soc     &{syn_param}
-
-
-
-Send NAK to Soc
-    Library Send NAK to Soc
-
-Hold On A While
-    Library_Hold_On_A_While
-
-Receive SYN In Time
-    [Arguments]             ${timeout}
-    &{SYN Param} =          Library_Receive_SYN_In_Time     ${timeout}
-    Return From Keyword     &{SYN Param}
-
-Receive SYN ACK In Time
-    [Arguments]             ${timeout}      &{syn_param}
-    &{SYN ACK Param}=       Library Recvive SYN ACK In Time    ${timeout}      &{syn_param}
-    Return From Keyword     &{SYN ACK Param}
-
-
-
-
-
-*** Keywords ***
-MCU Can Accept SYN Param
-    [Arguments]                         &{syn_param}
-    Library MCU Can Accept SYN Param    &{syn_param}
-
-Set MCU Default Param
-    [Arguments]                         &{mcu_param}
-    Library Set MCU Default Param       &{mcu_param}
-
-Set MCU Negotiated Param
-    [Arguments]                         &{param}
-    Library_Set_MCU_Negotiated_Param    &{param}
-
-

@@ -52,12 +52,13 @@ class LinkSpec(object):
 
 
 
+    #### Test Session
     cTestSession_CmdID_RequestData = 0x2
 
+    #### Request Data
     cHFeild_TestCommondID = 'TestCmdID'
     cHFeild_NoNakCount = 'NoNakCount'
     cHFeild_NoNakPayloadMaxSize = 'NoNakPayloadMaxSize'
-
     cLinkTestSession_RequestData_Format = '>BBH'
-    cLinkTestSession_RequestData_Field = cHFeild_TestCommondID+' '+cHFeild_NoNakCount+' '+cLinkTestSession_RequestData_Format
+    cLinkTestSession_RequestData_Field = cHFeild_TestCommondID+' '+cHFeild_NoNakCount+' '+ cHFeild_NoNakPayloadMaxSize
     cLinkTestSession_RequestData_TupleType = namedtuple('TestSessionRequestDataTuple', cLinkTestSession_RequestData_Field)

@@ -364,10 +364,23 @@ def Library_Received_Nothing_In_Time():
     skdebug('[Library] Received_Nothing_In_Time begin')
     session.RecviveNothing(timeout=2)
 
+
 def Library_Received_Test_NoNAK():
     session: LinkSession = LinkSession.GetInstance()
     skdebug('[Library] Received_Test_NoNAK begin')
     session.RecviveTestNoNAK(timeout=2)
+
+
+def Library_Received_Test_NoNAK_With_ACK():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Received_Test_NoNAK_With_ACK begin')
+    session.RecviveTestNoNAKWithAck(timeout=2)
+    skdebug('[Library] Received_Test_NoNAK_With_ACK end')
+
+def Library_Received_MaxCumAckCount_Test_NoNAK():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Received_MaxCumAckCount_NoNAK begin')
+    session.RecviveMaxCumAckCountTestNoNAKWithAck(timeout=2)
 
 def Library_SYN_Complete():
     session: LinkSession = LinkSession.GetInstance()
@@ -391,6 +404,12 @@ def Library_Test_Request_NoNAK_PKT():
     session: LinkSession = LinkSession.GetInstance()
     skdebug('[Library] Test_Request_NoNAK_PKT begin')
     session.TestRequestNoNAK()
+
+
+def Library_Test_Request_MaxCumAckCount_NoNAK_PKT():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Test_Request_MaxCumAckCount_NoNAK_PKT begin')
+    session.TestRequestMaxCumAckCountNoNAK()
 
 
 def Library_MCU_SYN():

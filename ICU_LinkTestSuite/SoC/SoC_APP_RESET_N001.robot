@@ -2,13 +2,14 @@
 Resource    ..\\Common.robot
 
 *** Test Cases ***
-Soc_SYN_ONCE_FC003
-    [Documentation]  握手过程中穿插>Maximum Received Packet Length的包
+SoC_APP_RESET_N001
+    [Documentation]  触发Reset
     Send_RST
     Received_Acceptable_SYN_In_Time
-    Send_OverLength_PKT
+    Send_RST
+    Received_Acceptable_SYN_In_Time
+    Send_RST
     Received_Acceptable_SYN_In_Time
     Reply_SYN
-    Send_OverLength_PKT
     Received_ACK_In_Time
     Received_Nothing_In_Time

@@ -173,11 +173,12 @@ class LinkPacketHeader(object):
 class LinkPacket(object):
 
     def gen_test_start_payload():
-        payload_data = bytearray(b'\x00')
-        payload_data += (bytes('SPICU-LinkTest!', encoding='ASCII'))
-        skdebug('payload_data:', payload_data)
-        skdebug('payload_data:', payload_data.hex())
-        return payload_data
+        pdata = bytearray(b'\x00')
+        pdata += (bytes('SPICU-LinkTest!', encoding='ASCII'))
+        skdebug('payload_data:', pdata)
+        skdebug('payload_data:', pdata.hex())
+        res = clac_checksum(pdata)
+        return pdata + res.to_bytes(length=2, byteorder='big', signed=False)
 
     def gen_random_payload(size=1):
         skdebug('gen_random_payload size:', size)
@@ -194,9 +195,11 @@ class LinkPacket(object):
         # skdebug('res.to_bytes() type:', type(res.to_bytes(length=2,byteorder='big',signed=False)))
         return whole_data + res.to_bytes(length=2, byteorder='big', signed=False)
 
-    def gen_test_request_data_payload(count=1, maxsize=16):
-        return struct.pack(LinkSpec.cLinkTestSession_RequestData_TupleType,
-                           LinkSpec.cTestSession_CmdID_RequestData, count, maxsize)
+    def gen_test_request_data_payload(count=2, maxsize=32):
+        pdata = struct.pack(LinkSpec.cLinkTestSession_RequestData_Format,
+                            LinkSpec.cTestSession_CmdID_RequestData, count, maxsize)
+        res = clac_checksum(pdata)
+        return pdata + res.to_bytes(length=2, byteorder='big', signed=False)
 
     def gen_std_rst_packet():
         return LinkPacket(header_bytes=LinkPacketHeader(header_dict={LinkSpec.cHFeild_RST: 1}).to_bytes())
@@ -235,6 +238,7 @@ class LinkPacket(object):
         return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=payload.to_bytes())
 
     def gen_syn_ack_packet(param_dict: dict):
+        skdebug('gen_syn_ack_packet param_dict:', param_dict)
         header = LinkPacketHeader(header_dict={
             LinkSpec.cHFeild_PAN: param_dict[LinkSpec.cHFeild_PAN],
             LinkSpec.cHFeild_PSN: param_dict[LinkSpec.cHFeild_PSN],
@@ -269,10 +273,12 @@ class LinkPacket(object):
             pl_bytes = LinkPacket.gen_random_payload(size=int(param_dict[LinkSpec.cHFeild_MRPL] * 2/16))
             return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes)
 
-    def gen_test_packet(type, param_dict: dict = None):
+    def gen_test_packet(type, req_pkt_count=1, param_dict: dict = None):
         if type == TestPktType.TEST_START:
             skdebug('TEST_START')
-            header = LinkPacketHeader(header_dict={LinkSpec.cHFeild_SI: 0x09})
+            header = LinkPacketHeader(header_dict={
+                LinkSpec.cHFeild_SI: 0x09,
+                LinkSpec.cHFeild_PSN: param_dict[LinkSpec.cHFeild_PSN]})
             pl_bytes = LinkPacket.gen_test_start_payload()
             return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes)
         elif type == TestPktType.TEST_DATA_NONAK:
@@ -283,9 +289,12 @@ class LinkPacket(object):
             pl_bytes = LinkPacket.gen_random_payload()
             return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes)
         elif type == TestPktType.TEST_REQUEST_NONAK:
+            skdebug('TEST_REQUEST_NONAK')
             header = LinkPacketHeader(header_dict={
-                LinkSpec.cHFeild_SI: 0x09})
-            pl_bytes = LinkPacket.gen_test_request_data_payload()
+                LinkSpec.cHFeild_SI: 0x09,
+                LinkSpec.cHFeild_PSN: param_dict[LinkSpec.cHFeild_PSN]})
+            pl_bytes = LinkPacket.gen_test_request_data_payload(count=req_pkt_count)
+            skdebug('pl_bytes:', pl_bytes.hex())
             return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes)
 
     def __init__(self, packet_bytes=None, header_bytes=None, payload_bytes=None, auto_update_pl=True):
@@ -379,12 +388,21 @@ class LinkPacket(object):
                 self.mHeader.mControlByte.mACK == 1 and \
                 self.mHeader.mControlByte.mNAK == 0 and \
                 self.mHeader.mControlByte.mRST == 0 and \
-                self.mHeader.mPacketSeqNum == 0:
+                self.mHeader.mPacketSeqNum == 0:  # ACK包PSN必须为0
+            return True
+        return False
+
+    def is_nonak_ack_packet(self):
+        if self.mHeader.mControlByte.mSYN == 0 and \
+                self.mHeader.mControlByte.mEAK == 0 and \
+                self.mHeader.mControlByte.mACK == 1 and \
+                self.mHeader.mControlByte.mNAK == 0 and \
+                self.mHeader.mControlByte.mRST == 0:
             return True
         return False
 
     def is_nonak_packet(self):
-        if self.is_syn_packet() or self.is_syn_ack_packet():
+        if self.is_syn_packet() or self.is_syn_ack_packet() or self.is_nonak_ack_packet():
             return True
         elif self.is_ack_packet():
             return False
