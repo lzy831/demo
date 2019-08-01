@@ -3,7 +3,7 @@ Resource    ..\\Common.robot
 
 *** Test Cases ***
 SoC_APP_ACK_I0005
-    [Documentation]  正常NoNAK包的通信中，插入RESET包，ACK状态是否正确
+    [Documentation]  测试SoC在正常通信中，收到RESET包，SoC状态是否会重新启动SYN
     MCU_SYN
     Test_Start
     Test_Send_NoNAK_PKT

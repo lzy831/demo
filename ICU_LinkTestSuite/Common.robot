@@ -117,7 +117,7 @@ Send_Random_EAK
     Library_Send_Random_EAK
 
 Send_BAD_SOP_PKT
-    Library_Send_BAD_SOP_PKT
+    Library_Send_BAD_PKT_INVALID_SOP
 
 Send_BAD_PL_PKT
     Library_Send_BAD_PL_PKT

@@ -25,6 +25,8 @@ class SessionState(object):
         self.mSendQueue = collections.deque(maxlen=1)
         self.mRecvQueue = collections.deque(maxlen=1)
         self.mNextSendPSN = random.randint(0, 255)
+        self.mRemoteMaxRecvPktLen = 128
+        self.mRemoteMaxNumOfOutStdPkts = 4
 
     def Update(self, param_dict):
         tmp = collections.deque(maxlen=param_dict[LinkSpec.cHFeild_MNOOSP])
@@ -42,8 +44,9 @@ class SessionState(object):
 
     def GetNextPSN(self, autoplus=True):
         np = self.mNextSendPSN
+        skdebug('GetNextPSN np:', np)
         if autoplus:
-            self.mNextSendPSN = (self.mNextSendPSN + 1) % 255
+            self.mNextSendPSN = (self.mNextSendPSN + 1) % 256
         return np
 
     def IsValidPan(self, pan):
@@ -55,7 +58,11 @@ class SessionState(object):
         skdebug('IsValidPan, not a valid pan', pan)
         return False
 
-    def StashSentPkt(self, packet):
+    def StashSentPkt(self, packet:LinkPacket):
+        # last_pkt:LinkPacket = self.mSendQueue[-1]
+        # last_psn = last_pkt.mHeader.mPacketSeqNum
+        # new_psn = packet.mHeader.mPacketSeqNum
+        # if new_psn == last_psn+1:
         self.mSendQueue.append(packet)
         skdebug('StashSentPkt len:', len(self.mSendQueue))
 
@@ -65,6 +72,9 @@ class SessionState(object):
 
     def GetLastSentPkt(self):
         return self.mSendQueue[-1]
+
+    def GetFistSentPkt(self):
+        return self.mSendQueue[0]
 
     def GetLastRecvPkt(self):
         skdebug('GetLastRecvPkt mRecvQueue:', self.mRecvQueue)
@@ -90,7 +100,7 @@ class LinkSession(object):
     def UpdateSynDefaultParam(self):
         if self.mRole == LinkRole.MCU:
             self.mLinkVersion = 1
-            self.mMaxNumOfOutStdPkts = 4
+            self.mMaxNumOfOutStdPkts = 5
             self.mMaxRecvPktLen = 256
             self.mRetransTimeout = 400
             self.mCumAckTimeout = 22
@@ -152,6 +162,9 @@ class LinkSession(object):
             return True
         return False
 
+    def IsValidPan(self,pan):
+        return self.mState.IsValidPan(pan)
+
     def IsNegotiableSynParam(self, lsp_obj: LinkSynPayload):
         return not self.CanAccpetSynParam(lsp_obj)
 
@@ -167,13 +180,15 @@ class LinkSession(object):
             return True
         return False
 
-    def SendPacket(self, packet):
+    def SendPacket(self, packet: LinkPacket):
         skdebug('SendPacket:', packet.info_string())
-        self.mSerialPort.SendPacket(packet.to_bytes())
+        t = self.mSerialPort.SendPacket(packet.to_bytes())
+        packet.mSentTime = t
+        return packet
 
     def SendRst(self):
         rst_pkt = LinkPacket.gen_std_rst_packet()
-        self.SendPacket(rst_pkt)
+        return self.SendPacket(rst_pkt)
 
     def SendRandomEak(self, pan=None):
         if not pan:
@@ -183,11 +198,11 @@ class LinkSession(object):
             LinkSpec.cHFeild_PAN: pan
         }
         eak_pkt = LinkPacket.gen_random_eak_packet(param_dict)
-        self.SendPacket(eak_pkt)
+        return self.SendPacket(eak_pkt)
 
     def SendNak(self):
         nak_pkt = LinkPacket.gen_nak_packet()
-        self.SendPacket(nak_pkt)
+        return self.SendPacket(nak_pkt)
 
     def SendApp(self):
         param_dict = {
@@ -195,7 +210,7 @@ class LinkSession(object):
         }
         app_pkt = LinkPacket.gen_random_app_packet(param_dict)
         self.mState.StashSentPkt(app_pkt)
-        self.SendPacket(app_pkt)
+        return self.SendPacket(app_pkt)
 
     def SendAck(self, pan=None):
         if not pan:
@@ -205,7 +220,7 @@ class LinkSession(object):
             LinkSpec.cHFeild_PAN: pan,
         }
         ack_pkt = LinkPacket.gen_ack_packet(param_dict)
-        self.SendPacket(ack_pkt)
+        return self.SendPacket(ack_pkt)
 
     def SendSyn(self):
         param_dict = {
@@ -220,7 +235,7 @@ class LinkSession(object):
         }
         syn_pkt = LinkPacket.gen_syn_packet(param_dict)
         self.mState.StashSentPkt(syn_pkt)
-        self.SendPacket(syn_pkt)
+        return self.SendPacket(syn_pkt)
 
     def SendSynAck(self):
         last_recv_pkt = self.mState.GetLastRecvPkt()
@@ -238,7 +253,7 @@ class LinkSession(object):
         }
         pkt = LinkPacket.gen_syn_ack_packet(param_dict)
         self.mState.StashSentPkt(pkt)
-        self.SendPacket(pkt)
+        return self.SendPacket(pkt)
 
     def ReplySyn(self, syn_pkt_obj=None):
         """根据SYN的参数来决定接受还是再次协商"""
@@ -251,6 +266,10 @@ class LinkSession(object):
                 raise RobotTestFlowException
 
         lsp_obj = LinkSynPayload(payload_bytes=syn_pkt_obj.mPayloadBytes)
+
+        self.mState.mRemoteMaxRecvPktLen = lsp_obj.mMaxRecvPktLen
+        self.mState.mRemoteMaxNumOfOutStdPkts = lsp_obj.mMaxNumOfOutStdPkts
+
         if self.CanAccpetSynParam(lsp_obj):
             """可以接受参数"""
             skdebug('accept syn param')
@@ -285,7 +304,7 @@ class LinkSession(object):
             }
         syn_ack_pkt = LinkPacket.gen_syn_ack_packet(param_dict)
         self.mState.StashSentPkt(syn_ack_pkt)
-        self.SendPacket(syn_ack_pkt)
+        return self.SendPacket(syn_ack_pkt)
 
     def SynCompete(self):
         param_dict = {
@@ -299,14 +318,31 @@ class LinkSession(object):
         if not LinkPacket.is_syn_ack_packet(pkt):
             raise RobotTestFlowException
         else:
-            self.SendPacket(pkt)
+            return self.SendPacket(pkt)
+
+    def RetransmitPreviousNoNAK(self):
+        pkt = self.mState.GetLastSentPkt()
+        return self.SendPacket(pkt)
+
+    def RetransmitFirstNoNAKInSentQ(self):
+        pkt = self.mState.GetFistSentPkt()
+        return self.SendPacket(pkt)
 
     def SendBadPkt(self, type):
+        # last_sent_pkt:LinkPacket = self.mState.GetLastSentPkt()
+        last_recv_pkt: LinkPacket = self.mState.GetLastRecvPkt()
         param_dict = {
-            LinkSpec.cHFeild_MRPL: self.mMaxRecvPktLen
+            LinkSpec.cHFeild_MNOOSP: self.mMaxNumOfOutStdPkts,
+            LinkSpec.cHFeild_RemoteMRPL: self.mState.mRemoteMaxRecvPktLen,
+            LinkSpec.cHFeild_MRPL: self.mMaxRecvPktLen,
+            LinkSpec.cHFeild_PSN: self.mState.GetNextPSN(),
+            LinkSpec.cHFeild_PAN: last_recv_pkt.mHeader.mPacketSeqNum
         }
         bad_pkt = LinkPacket.gen_bad_packet(type, param_dict)
-        self.SendPacket(bad_pkt)
+
+        if(type == BadPktType.WITH_NONEED_PAN):
+            self.mState.StashSentPkt(bad_pkt)
+        return self.SendPacket(bad_pkt)
 
     def TestStart(self):
         pdict = {
@@ -314,15 +350,32 @@ class LinkSession(object):
         }
         pkt = LinkPacket.gen_test_packet(TestPktType.TEST_START, param_dict=pdict)
         self.mState.StashSentPkt(pkt)
-        self.SendPacket(pkt)
+        return self.SendPacket(pkt)
 
-    def TestSendNoNAK(self):
+    def TestSendNoNAK(self,skip_psn=0):
+        psn = self.mState.GetNextPSN()
+        skdebug('TestSendNoNAK psn:', psn)
+        while skip_psn>0:
+            psn = self.mState.GetNextPSN()
+            skip_psn = skip_psn-1
+        skdebug('TestSendNoNAK psn:', psn)
         pdict = {
-            LinkSpec.cHFeild_PSN: self.mState.GetNextPSN()
+            LinkSpec.cHFeild_PSN: psn
         }
         pkt = LinkPacket.gen_test_packet(TestPktType.TEST_DATA_NONAK, param_dict=pdict)
         self.mState.StashSentPkt(pkt)
-        self.SendPacket(pkt)
+        return self.SendPacket(pkt)
+
+    # def TestSendMNOOSPNoNAK(self):
+    #     skdebug('TestSendMNOOSPNoNAK mRemoteMaxNumOfOutStdPkts:', self.mState.mRemoteMaxNumOfOutStdPkts)
+    #     for i in range(0, self.mState.mRemoteMaxNumOfOutStdPkts):
+    #         skdebug('TestSendMNOOSPNoNAK send ndx:', i)
+    #         pdict = {
+    #             LinkSpec.cHFeild_PSN: self.mState.GetNextPSN()
+    #         }
+    #         pkt = LinkPacket.gen_test_packet(TestPktType.TEST_DATA_NONAK, param_dict=pdict)
+    #         self.mState.StashSentPkt(pkt)
+    #         return self.SendPacket(pkt)
 
     def TestRequestNoNAK(self):
         pdict = {
@@ -330,7 +383,7 @@ class LinkSession(object):
         }
         pkt = LinkPacket.gen_test_packet(TestPktType.TEST_REQUEST_NONAK, param_dict=pdict)
         self.mState.StashSentPkt(pkt)
-        self.SendPacket(pkt)
+        return self.SendPacket(pkt)
 
     def TestRequestMaxCumAckCountNoNAK(self):
         pdict = {
@@ -338,68 +391,100 @@ class LinkSession(object):
         }
         pkt = LinkPacket.gen_test_packet(TestPktType.TEST_REQUEST_NONAK, req_pkt_count=self.mMaxCumAck, param_dict=pdict)
         self.mState.StashSentPkt(pkt)
-        self.SendPacket(pkt)
+        return self.SendPacket(pkt)
 
-    def RecviveSyn(self, timeout=2):
+
+
+
+
+
+
+
+    def ReceiveOneSpecificPacket(self, type:PacketType, timeout=2):
+        skdebug('type:', type)
         start_time = time.time()
         while True:
-            pkt_bytes = self.mSerialPort.RecvPacket()
-            if pkt_bytes != None:
-                skdebug('RecviveSyn received a packet')
-                link_pkt_obj = LinkPacket(packet_bytes=pkt_bytes)
-                if link_pkt_obj.is_nonak_packet():
-                    self.mState.StashRecvPkt(link_pkt_obj)
-                if link_pkt_obj.is_syn_packet():
-                    skdebug('RecviveSyn recv packet is a syn packet:', link_pkt_obj.info_string())
-                    return link_pkt_obj
+            pkt = self.mSerialPort.RecvPacket()
+
+            # 优先检测是否超时
             cost_time = time.time()-start_time
             if(cost_time > float(timeout)):
-                skdebug('RecviveSyn timeout cost_time:', cost_time)
+                skdebug('recv packet timeout, cost_time:', cost_time)
                 raise RobotTimeoutError
 
-    def RecviveSynAck(self, timeout=2):
-        start_time = time.time()
-        while True:
-            pkt_bytes = self.mSerialPort.RecvPacket()
-            if pkt_bytes != None:
-                skdebug('RecviveSynAck received a packet')
-                link_pkt_obj = LinkPacket(packet_bytes=pkt_bytes)
-                if link_pkt_obj.is_nonak_packet():
-                    self.mState.StashRecvPkt(link_pkt_obj)
-                if link_pkt_obj.is_syn_ack_packet():
-                    skdebug('RecviveSynAck recv packet is syn ack packet:', link_pkt_obj.info_string())
-                    return link_pkt_obj
-            cost_time = time.time()-start_time
-            if(cost_time > float(timeout)):
-                skdebug('RecviveSynAck timeout cost_time:', cost_time)
-                raise RobotTimeoutError
-
-    def RecviveAck(self, timeout=2):
-        start_time = time.time()
-        while True:
-            pkt_bytes = self.mSerialPort.RecvPacket()
-            if pkt_bytes != None:
-                skdebug('RecviveAck received a packet')
-                link_pkt_obj = LinkPacket(packet_bytes=pkt_bytes)
-                # if link_pkt_obj.is_nonak_packet():
-                #     self.mState.StashRecvPkt(link_pkt_obj)
-                if link_pkt_obj.is_ack_packet():
-                    skdebug('RecviveAck recv packet is ack packet:', link_pkt_obj.info_string())
-                    if self.mState.IsValidPan(link_pkt_obj.mHeader.mPacketAckNum):
-                        return link_pkt_obj
+            if pkt:
+                if PacketTypeMatch(pkt,type):
+                    if IsNoNakPacket(pkt):
+                        self.mState.StashRecvPkt(pkt)
+                    skdebug('recv a packet, type:', type, pkt.info_string())
+                    return pkt
                 else:
-                    skdebug('RecviveAck recv packet is not ack packet', link_pkt_obj.info_string())
-            cost_time = time.time()-start_time
-            if(cost_time > float(timeout)):
-                skdebug('RecviveAck timeout cost_time:', cost_time)
-                raise RobotTimeoutError
+                    skdebug('recv a packet, but type not match', pkt.info_string())
+                    raise RobotTestFlowException
+
+
+
+
+    # def RecviveSyn(self, timeout=2):
+    #     start_time = time.time()
+    #     while True:
+    #         pkt_bytes = self.mSerialPort.RecvPacket()
+    #         if pkt_bytes != None:
+    #             skdebug('RecviveSyn received a packet')
+    #             link_pkt_obj = LinkPacket(packet_bytes=pkt_bytes, recv_time=time.time())
+    #             if link_pkt_obj.is_nonak_packet():
+    #                 self.mState.StashRecvPkt(link_pkt_obj)
+    #             if link_pkt_obj.is_syn_packet():
+    #                 skdebug('RecviveSyn recv packet is a syn packet:', link_pkt_obj.info_string())
+    #                 return link_pkt_obj
+    #         cost_time = time.time()-start_time
+    #         if(cost_time > float(timeout)):
+    #             skdebug('RecviveSyn timeout cost_time:', cost_time)
+    #             raise RobotTimeoutError
+
+    # def RecviveSynAck(self, timeout=2):
+    #     start_time = time.time()
+    #     while True:
+    #         pkt_bytes = self.mSerialPort.RecvPacket()
+    #         if pkt_bytes != None:
+    #             skdebug('received a packet')
+    #             link_pkt_obj = LinkPacket(packet_bytes=pkt_bytes, recv_time=time.time())
+    #             if link_pkt_obj.is_nonak_packet():
+    #                 self.mState.StashRecvPkt(link_pkt_obj)
+    #             if link_pkt_obj.is_syn_ack_packet():
+    #                 skdebug('recv packet is syn ack packet:', link_pkt_obj.info_string())
+    #                 return link_pkt_obj
+    #         cost_time = time.time()-start_time
+    #         if(cost_time > float(timeout)):
+    #             skdebug('timeout cost_time:', cost_time)
+    #             raise RobotTimeoutError
+
+    # def RecviveAck(self, timeout=2):
+    #     start_time = time.time()
+    #     while True:
+    #         pkt_bytes = self.mSerialPort.RecvPacket()
+    #         if pkt_bytes != None:
+    #             skdebug('received a packet')
+    #             link_pkt_obj = LinkPacket(packet_bytes=pkt_bytes, recv_time=time.time())
+    #             # if link_pkt_obj.is_nonak_packet():
+    #             #     self.mState.StashRecvPkt(link_pkt_obj)
+    #             if link_pkt_obj.is_ack_packet():
+    #                 skdebug('recv packet is ack packet:', link_pkt_obj.info_string())
+    #                 if self.mState.IsValidPan(link_pkt_obj.mHeader.mPacketAckNum):
+    #                     return link_pkt_obj
+    #             else:
+    #                 skdebug('recv packet is not ack packet', link_pkt_obj.info_string())
+    #         cost_time = time.time()-start_time
+    #         if(cost_time > float(timeout)):
+    #             skdebug('timeout cost_time:', cost_time)
+    #             raise RobotTimeoutError
 
     def RecviveNothing(self, timeout=2):
         start_time = time.time()
         while True:
             pkt_bytes = self.mSerialPort.RecvPacket()
             if pkt_bytes != None:
-                link_pkt_obj = LinkPacket(packet_bytes=pkt_bytes)
+                link_pkt_obj = LinkPacket(packet_bytes=pkt_bytes, recv_time=time.time())
                 skdebug('received a packet', link_pkt_obj.info_string())
                 raise RobotRecvInvalidData
             cost_time = time.time()-start_time
@@ -407,60 +492,91 @@ class LinkSession(object):
                 skdebug('timeout cost_time:', cost_time)
                 return
 
-    def RecviveTestNoNAK(self, timeout=2):
-        start_time = time.time()
-        while True:
-            pkt_bytes = self.mSerialPort.RecvPacket()
-            if pkt_bytes != None:
-                skdebug('RecviveAck received a packet')
-                link_pkt_obj = LinkPacket(packet_bytes=pkt_bytes)
-                if link_pkt_obj.is_nonak_packet():
-                    self.mState.StashRecvPkt(link_pkt_obj)
-                    skdebug('RecviveAck recv packet is a nonak packet:', link_pkt_obj.info_string())
-                    return link_pkt_obj
-                else:
-                    skdebug('RecviveAck recv packet is not a nonak packet', link_pkt_obj.info_string())
-            cost_time = time.time()-start_time
-            if(cost_time > float(timeout)):
-                skdebug('RecviveAck timeout cost_time:', cost_time)
-                raise RobotTimeoutError
+    # def RecviveTestNoNAK(self, timeout=2):
+    #     start_time = time.time()
+    #     while True:
+    #         pkt_bytes = self.mSerialPort.RecvPacket()
+    #         if pkt_bytes != None:
+    #             skdebug('received a packet')
+    #             link_pkt_obj = LinkPacket(packet_bytes=pkt_bytes, recv_time=time.time())
+    #             if link_pkt_obj.is_nonak_packet():
+    #                 self.mState.StashRecvPkt(link_pkt_obj)
+    #                 skdebug('recv packet is a nonak packet:', link_pkt_obj.info_string())
+    #                 return link_pkt_obj
+    #             else:
+    #                 skdebug('recv packet is not a nonak packet', link_pkt_obj.info_string())
+    #         cost_time = time.time()-start_time
+    #         if(cost_time > float(timeout)):
+    #             skdebug('timeout cost_time:', cost_time)
+    #             raise RobotTimeoutError
 
-    def RecviveTestNoNAKWithAck(self, timeout=2):
-        start_time = time.time()
+    # def RecviveTestNoNAKWithAck(self, timeout=2):
+    #     start_time = time.time()
+    #     while True:
+    #         pkt_bytes = self.mSerialPort.RecvPacket()
+    #         if pkt_bytes != None:
+    #             skdebug('received a packet')
+    #             link_pkt_obj = LinkPacket(packet_bytes=pkt_bytes, recv_time=time.time())
+    #             if link_pkt_obj.is_nonak_ack_packet():
+    #                 self.mState.StashRecvPkt(link_pkt_obj)
+    #                 skdebug('recv packet is a nonak+ack packet:', link_pkt_obj.info_string())
+    #                 return link_pkt_obj
+    #             else:
+    #                 skdebug('recv packet is not a nonak+ack packet', link_pkt_obj.info_string())
+    #         cost_time = time.time()-start_time
+    #         if(cost_time > float(timeout)):
+    #             skdebug('timeout cost_time:', cost_time)
+    #             raise RobotTimeoutError
+
+    def RecviveTwiceTestNoNAKInTime(self):
+        timeout = float(self.mRetransTimeout/1000*1.1)
+        skdebug('RecviveTwiceTestNoNAKInTime timeout:', timeout)
+        recv_count = 0
         while True:
             pkt_bytes = self.mSerialPort.RecvPacket()
             if pkt_bytes != None:
-                skdebug('RecviveAck received a packet')
-                link_pkt_obj = LinkPacket(packet_bytes=pkt_bytes)
+                skdebug('received a packet')
+                link_pkt_obj = LinkPacket(packet_bytes=pkt_bytes, recv_time=time.time())
                 if link_pkt_obj.is_nonak_ack_packet():
                     self.mState.StashRecvPkt(link_pkt_obj)
-                    skdebug('RecviveAck recv packet is a nonak+ack packet:', link_pkt_obj.info_string())
-                    return link_pkt_obj
+                    skdebug('recv packet is a nonak+ack packet:', link_pkt_obj.info_string())
+                    if recv_count == 0:
+                        start_time = link_pkt_obj.mRecvTime
+                        recv_count = 1
+                    elif recv_count == 1:
+                        cost_time = link_pkt_obj.mRecvTime - start_time
+                        if(cost_time > float(timeout)):
+                            skdebug('beyond mRetransTimeout, cost_time:', cost_time)
+                            raise RobotTimeoutError
+                        else:
+                            skdebug('received retransmit packet in', cost_time, 'ms')
+                            return link_pkt_obj
                 else:
-                    skdebug('RecviveAck recv packet is not a nonak+ack packet', link_pkt_obj.info_string())
+                    skdebug('recv packet is not a nonak+ack packet', link_pkt_obj.info_string())
             cost_time = time.time()-start_time
             if(cost_time > float(timeout)):
-                skdebug('RecviveAck timeout cost_time:', cost_time)
+                skdebug('timeout cost_time:', cost_time)
                 raise RobotTimeoutError
 
     def RecviveMaxCumAckCountTestNoNAKWithAck(self, timeout=2):
         start_time = time.time()
         needCount = self.mMaxCumAck
-        while needCount>0:
+        while needCount > 0:
             pkt_bytes = self.mSerialPort.RecvPacket()
             if pkt_bytes != None:
-                skdebug('RecviveAck received a packet')
-                link_pkt_obj = LinkPacket(packet_bytes=pkt_bytes)
+                skdebug('received a packet')
+                link_pkt_obj = LinkPacket(packet_bytes=pkt_bytes, recv_time=time.time())
                 if link_pkt_obj.is_nonak_packet():
                     self.mState.StashRecvPkt(link_pkt_obj)
-                    skdebug('RecviveAck recv packet is a nonak+ack packet:', link_pkt_obj.info_string())
-                    needCount = needCount -1
+                    skdebug('recv packet is a nonak+ack packet:', link_pkt_obj.info_string())
+                    needCount = needCount - 1
                 else:
-                    skdebug('RecviveAck recv packet is not a nonak+ack packet', link_pkt_obj.info_string())
+                    skdebug('recv packet is not a nonak+ack packet', link_pkt_obj.info_string())
             cost_time = time.time()-start_time
             if(cost_time > float(timeout)):
-                skdebug('RecviveAck timeout cost_time:', cost_time)
+                skdebug('timeout cost_time:', cost_time)
                 raise RobotTimeoutError
+
 
 if __name__ == "__main__":
     session = LinkSession(LinkRole.MCU)
@@ -470,7 +586,7 @@ if __name__ == "__main__":
     skdebug('send rst ok')
 
     try:
-        syn_pkt_obj = session.RecviveSyn()
+        syn_pkt_obj = session.ReceiveOneSpecificPacket(PacketType.SYN)
         skdebug('recvd a syn pkt: ', syn_pkt_obj.info_string())
 
         session.ReplySyn(syn_pkt_obj)

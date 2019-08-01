@@ -4,16 +4,37 @@
 import random
 import struct
 from enum import Enum
+
 from icu_link_spec import *
 from icu_debug import *
 from icu_checksum import *
+from icu_link_syn_payload import *
+from icu_link_eak_payload import *
 
+PacketType = Enum('PacketType', (
+    'SYN',
+    'SYN_ACK',
+    'ACK',
+    'NoNAK',
+    'NoNAK_ACK',
+    'EAK'
+    ))
 
 class BadPktType(Enum):
     BAD_SOP = 0
     BAD_PL = 1
-    BAD_PAN = 2
-    OVER_MAX_LEN = 3
+    BAD_PL_2 = 2
+    BAD_PAN = 3
+    BAD_CB = 4
+    OVER_MAX_LEN = 5
+    PSN_OUT_OF_RECV_WIN = 6  # PSN位于OutOfRecvWin范围内的数据包
+    WITH_NONEED_PAN = 7  # TestSession数据包,携带非必须PAN字段
+    INVALID_ACK = 8  # 包含错误PAN的ACK包
+    INVALID_SESSION_ID = 9  # SessionID字段不合法的数据包
+    INCORRECT_HC = 10  # HeaderChecksum字段不正确的数据包
+    INCORRECT_PC = 11  # PayloadChecksum字段不正确的数据包
+    SYN_INVALID_DATA = 12  # 携带非法字段的SYN包
+    OVER_MAX_RECV_LEN_TEST_NONAK = 13  # 超过最大处理长度的测试数据包
 
 
 class TestPktType(Enum):
@@ -23,48 +44,6 @@ class TestPktType(Enum):
     TEST_REQUEST_NONAK = 3
 
 
-class LinkSynPayload(object):
-    def __init__(self, payload_bytes=None, payload_dict=None):
-        if payload_bytes:
-            self.update_with_bytes(payload_bytes)
-        elif payload_dict:
-            self.update_with_dict(payload_dict)
-
-    def update_with_dict(self, payload_dict: dict):
-        self.mLinkVersion = payload_dict.get(LinkSpec.cHFeild_LV, 1)
-        self.mMaxNumOfOutStdPkts = payload_dict.get(LinkSpec.cHFeild_MNOOSP, 0)
-        self.mMaxRecvPktLen = payload_dict.get(LinkSpec.cHFeild_MRPL, 0)
-        self.mRetransTimeout = payload_dict.get(LinkSpec.cHFeild_RT, 0)
-        self.mCumAckTimeout = payload_dict.get(LinkSpec.cHFeild_CAT, 0)
-        self.mMaxNumOfRetrans = payload_dict.get(LinkSpec.cHFeild_MNOR, 0)
-        self.mMaxCumAck = payload_dict.get(LinkSpec.cHFeild_MCA, 0)
-        data_without_checksum = struct.pack(LinkSpec.cLinkSynPayloadWithoutCheckssumFormat,
-                                            self.mLinkVersion, self.mMaxNumOfOutStdPkts, self.mMaxRecvPktLen,
-                                            self.mRetransTimeout, self.mCumAckTimeout, self.mMaxNumOfRetrans, self.mMaxCumAck)
-        self.mPayloadChecksum = clac_checksum(data_without_checksum)
-        # skdebug('data_without_checksum:', data_without_checksum)
-        # skdebug('mPayloadChecksum:', hex(self.mPayloadChecksum))
-
-    def update_with_bytes(self, payload_bytes: bytes):
-        # skdebug('LinkSynPayload update_with_bytes', payload_bytes.hex())
-        self.mPayloadTuple = LinkSpec.cLinkSynPayloadTupleType._make(struct.unpack(LinkSpec.cLinkSynPayloadFormat, payload_bytes))
-        self.mLinkVersion = self.mPayloadTuple.LinkVersion
-        self.mMaxNumOfOutStdPkts = self.mPayloadTuple.MaxNumOfOutStdPkts
-        self.mMaxRecvPktLen = self.mPayloadTuple.MaxRecvPktLen
-        self.mRetransTimeout = self.mPayloadTuple.RetransTimeout
-        self.mCumAckTimeout = self.mPayloadTuple.CumAckTimeout
-        self.mMaxNumOfRetrans = self.mPayloadTuple.MaxNumOfRetrans
-        self.mMaxCumAck = self.mPayloadTuple.MaxCumAck
-        self.mPayloadChecksum = self.mPayloadTuple.PayloadChecksum
-
-    def to_bytes(self):
-        return struct.pack(LinkSpec.cLinkSynPayloadFormat,
-                           self.mLinkVersion, self.mMaxNumOfOutStdPkts, self.mMaxRecvPktLen,
-                           self.mRetransTimeout, self.mCumAckTimeout, self.mMaxNumOfRetrans, self.mMaxCumAck, self.mPayloadChecksum)
-
-    def info_string(self):
-        return '\nLSP: {{LV: {:d}  MNOOSP: {:d}  MRPL: {:d}  RT: {:d}  CAT: {:d}  MNOR: {:d}  MAC: {:d}  PC: 0x{:04X}}}'.format(
-            self.mLinkVersion, self.mMaxNumOfOutStdPkts, self.mMaxRecvPktLen, self.mRetransTimeout, self.mCumAckTimeout, self.mMaxNumOfRetrans, self.mMaxCumAck, self.mPayloadChecksum)
 
 
 class ControlByte(object):
@@ -109,14 +88,14 @@ class ControlByte(object):
 
 class LinkPacketHeader(object):
 
-    def __init__(self, header_bytes=None, header_dict=None):
+    def __init__(self, header_bytes=None, header_dict=None, update_checksum=True):
         # skdebug('LinkPacketHeader construct')
         if header_bytes != None:
             # skdebug('header_bytes exist')
             self.update_with_bytes(header_bytes)
         elif header_dict != None:
             # skdebug('header_dict exist')
-            self.update_with_dict(header_dict)
+            self.update_with_dict(header_dict, update_checksum=update_checksum)
 
     def update_with_bytes(self, header_bytes: bytes):
         # skdebug('LinkPacketHeader update with bytes')
@@ -130,7 +109,7 @@ class LinkPacketHeader(object):
         self.mSessionId = self.mHeaderTuple.SessionId
         self.mHeaderChecksum = self.mHeaderTuple.HeaderChecksum
 
-    def update_with_dict(self, header_dict: dict):
+    def update_with_dict(self, header_dict: dict, update_checksum=True):
         # skdebug('LinkPacketHeader update with dict')
         self.mStartOfPacket = header_dict.get(LinkSpec.cHFeild_SOP, 0xAA55)
         self.mPacketLength = header_dict.get(LinkSpec.cHFeild_PL, 0)
@@ -140,11 +119,14 @@ class LinkPacketHeader(object):
         self.mPacketSeqNum = header_dict.get(LinkSpec.cHFeild_PSN, 0)
         self.mPacketAckNum = header_dict.get(LinkSpec.cHFeild_PAN, 0)
         self.mSessionId = header_dict.get(LinkSpec.cHFeild_SI, 0)
-        self.update_checksum()
+        self.mHeaderChecksum = header_dict.get(LinkSpec.cHFeild_HC, 0)
+        if update_checksum:
+            self.update_checksum()
 
-    def update_packet_length(self, len):
+    def update_packet_length(self, len, auto_update_hc=True):
         self.mPacketLength = len
-        self.update_checksum()
+        if auto_update_hc:
+            self.update_checksum()
 
     def update_checksum(self):
         data_without_checksum = struct.pack(LinkSpec.cLinkPacketHeaderWithoutChecksumFormat,
@@ -164,13 +146,33 @@ class LinkPacketHeader(object):
         return header_info
 
     def to_bytes(self):
-        # skdebug('to bytes')
         return struct.pack(LinkSpec.cLinkPacketHeaderFormat,
                            self.mStartOfPacket, self.mPacketLength, self.mControlByte.mValue,
                            self.mPacketSeqNum, self.mPacketAckNum, self.mSessionId, self.mHeaderChecksum)
 
 
 class LinkPacket(object):
+
+    def __init__(self, packet_bytes=None, header_bytes=None, payload_bytes=None, 
+                    auto_update_pl=True, auto_update_hc=True, recv_time=None):
+        if auto_update_pl:
+            self.mAutoUpdatePL = True
+        else:
+            self.mAutoUpdatePL = False
+
+        if recv_time:
+            self.mRecvTime = recv_time
+
+        if packet_bytes != None:
+            self.update_packet_with_bytes(packet_bytes)
+        elif header_bytes != None:
+            self.update_header_with_bytes(header_bytes)
+            if payload_bytes != None:
+                skdebug('payload_bytes:', payload_bytes.hex())
+                self.update_payload_with_bytes(payload_bytes)
+                self.update_packet_length(len(header_bytes)+len(payload_bytes), auto_update_hc)
+            else:
+                self.update_packet_length(len(header_bytes), auto_update_hc)
 
     def gen_test_start_payload():
         pdata = bytearray(b'\x00')
@@ -180,14 +182,17 @@ class LinkPacket(object):
         res = clac_checksum(pdata)
         return pdata + res.to_bytes(length=2, byteorder='big', signed=False)
 
-    def gen_random_payload(size=1):
-        skdebug('gen_random_payload size:', size)
+    def gen_random_payload(chunk_size=1, auto_update_pc=True):
+        skdebug('gen_random_payload chunk_size:', chunk_size)
         data = bytes.fromhex('000102030405060708090A0B0C0D0E0F')
         whole_data = bytearray()
-        for i in range(size):
+        for i in range(chunk_size):
             whole_data += data
         skdebug('whole_data len:', len(whole_data))
-        res = clac_checksum(whole_data)
+        if auto_update_pc:
+            res = clac_checksum(whole_data)
+        else:
+            res = int(0xF5F5)
         # skdebug('res:', res)
         # skdebug('res:', hex(res))
         # skdebug('res type:', type(res))
@@ -260,6 +265,12 @@ class LinkPacket(object):
             header = LinkPacketHeader(header_dict={LinkSpec.cHFeild_PL: random_pl})
             pl_bytes = LinkPacket.gen_random_payload()
             return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes, auto_update_pl=False)
+        elif type == BadPktType.BAD_PL_2:
+            skdebug('BAD_PL_2')  # 包长字段 < 实际payload
+            random_pl = 16
+            header = LinkPacketHeader(header_dict={LinkSpec.cHFeild_PL: random_pl})
+            pl_bytes = LinkPacket.gen_random_payload(chunk_size=2)
+            return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes, auto_update_pl=False)
         elif type == BadPktType.BAD_PAN:
             skdebug('BAD_PAN')
             random_pan = random.randint(0, 255)
@@ -267,55 +278,117 @@ class LinkPacket(object):
             header = LinkPacketHeader(header_dict={LinkSpec.cHFeild_PAN: random_pan})
             pl_bytes = LinkPacket.gen_random_payload()
             return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes)
+        elif type == BadPktType.BAD_CB:
+            skdebug('BAD_CB')
+            # 这里需求修改测试不同的错误ControlBytes
+            header = LinkPacketHeader(header_dict={
+                LinkSpec.cHFeild_SYN: 1,
+                LinkSpec.cHFeild_RST: 1, })
+            pl_bytes = LinkPacket.gen_random_payload()
+            return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes)
         elif type == BadPktType.OVER_MAX_LEN:
             skdebug('OVER_MAX_LEN')
             header = LinkPacketHeader(header_dict={})
-            pl_bytes = LinkPacket.gen_random_payload(size=int(param_dict[LinkSpec.cHFeild_MRPL] * 2/16))
+            pl_bytes = LinkPacket.gen_random_payload(chunk_size=int(param_dict[LinkSpec.cHFeild_RemoteMRPL]/16+1))
+            return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes)
+        elif type == BadPktType.PSN_OUT_OF_RECV_WIN:
+            skdebug('PSN_OUT_OF_RECV_WIN')
+            bad_psn = (param_dict[LinkSpec.cHFeild_PSN] + param_dict[LinkSpec.cHFeild_MNOOSP]+1) % 256
+            skdebug('previous sent psn:', param_dict[LinkSpec.cHFeild_PSN])
+            skdebug('bad psn:', bad_psn)
+            header = LinkPacketHeader(header_dict={
+                LinkSpec.cHFeild_PSN: bad_psn
+            })
+            pl_bytes = LinkPacket.gen_random_payload()
+            return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes)
+        elif type == BadPktType.WITH_NONEED_PAN:
+            skdebug('WITH_NONEED_PAN')
+            header = LinkPacketHeader(header_dict={
+                LinkSpec.cHFeild_SI: LinkSpec.cSessionID_TestSession,
+                LinkSpec.cHFeild_PSN: param_dict[LinkSpec.cHFeild_PSN],
+                LinkSpec.cHFeild_PAN: param_dict[LinkSpec.cHFeild_PAN]
+            })
+            pl_bytes = LinkPacket.gen_random_payload()
+            return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes)
+        elif type == BadPktType.INVALID_ACK:
+            skdebug('INVALID_ACK')
+            bad_pan = (param_dict[LinkSpec.cHFeild_PAN] + 50) % 256
+            header = LinkPacketHeader(header_dict={
+                LinkSpec.cHFeild_PAN: bad_pan
+            })
+            pl_bytes = LinkPacket.gen_random_payload()
+            return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes)
+        elif type == BadPktType.INVALID_SESSION_ID:
+            skdebug('INVALID_SESSION_ID')
+            header = LinkPacketHeader(header_dict={
+                LinkSpec.cHFeild_SI: 0xF1,
+                LinkSpec.cHFeild_PSN: param_dict[LinkSpec.cHFeild_PSN],
+            })
+            pl_bytes = LinkPacket.gen_random_payload()
+            return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes)
+        elif type == BadPktType.INCORRECT_HC:
+            skdebug('INCORRECT_HC')
+            header = LinkPacketHeader(header_dict={
+                LinkSpec.cHFeild_SI: LinkSpec.cSessionID_TestSession,
+                LinkSpec.cHFeild_PSN: param_dict[LinkSpec.cHFeild_PSN],
+                LinkSpec.cHFeild_HC: 0xF5F5
+            }, update_checksum=False)
+            pl_bytes = LinkPacket.gen_random_payload()
+            return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes, auto_update_hc=False)
+        elif type == BadPktType.INCORRECT_PC:
+            skdebug('INCORRECT_PC')
+            header = LinkPacketHeader(header_dict={
+                LinkSpec.cHFeild_SI: LinkSpec.cSessionID_TestSession,
+                LinkSpec.cHFeild_PSN: param_dict[LinkSpec.cHFeild_PSN],
+            })
+            pl_bytes = LinkPacket.gen_random_payload(auto_update_pc=False)
+            return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes)
+        elif type == BadPktType.SYN_INVALID_DATA:
+            skdebug('SYN_INVALID_DATA')
+            header = LinkPacketHeader(header_dict={
+                LinkSpec.cHFeild_PSN: param_dict[LinkSpec.cHFeild_PSN],
+                LinkSpec.cHFeild_SYN: 1
+            })
+            lsp = LinkSynPayload(payload_dict={
+                LinkSpec.cHFeild_LV: 1
+            })
+            return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=lsp.to_bytes())
+        elif type == BadPktType.OVER_MAX_RECV_LEN_TEST_NONAK:
+            skdebug('OVER_MAX_RECV_LEN_TEST_NONAK')
+            header = LinkPacketHeader(header_dict={
+                LinkSpec.cHFeild_SI: LinkSpec.cSessionID_TestSession,
+                LinkSpec.cHFeild_PSN: param_dict[LinkSpec.cHFeild_PSN],
+            })
+            pl_bytes = LinkPacket.gen_random_payload(chunk_size=int(param_dict[LinkSpec.cHFeild_RemoteMRPL]/16+1))
             return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes)
 
     def gen_test_packet(type, req_pkt_count=1, param_dict: dict = None):
         if type == TestPktType.TEST_START:
             skdebug('TEST_START')
             header = LinkPacketHeader(header_dict={
-                LinkSpec.cHFeild_SI: 0x09,
+                LinkSpec.cHFeild_SI: LinkSpec.cSessionID_TestSession,
                 LinkSpec.cHFeild_PSN: param_dict[LinkSpec.cHFeild_PSN]})
             pl_bytes = LinkPacket.gen_test_start_payload()
             return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes)
         elif type == TestPktType.TEST_DATA_NONAK:
             skdebug('TEST_DATA_NONAK')
             header = LinkPacketHeader(header_dict={
-                LinkSpec.cHFeild_SI: 0x09,
+                LinkSpec.cHFeild_SI: LinkSpec.cSessionID_TestSession,
                 LinkSpec.cHFeild_PSN: param_dict[LinkSpec.cHFeild_PSN]})
             pl_bytes = LinkPacket.gen_random_payload()
             return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes)
         elif type == TestPktType.TEST_REQUEST_NONAK:
             skdebug('TEST_REQUEST_NONAK')
             header = LinkPacketHeader(header_dict={
-                LinkSpec.cHFeild_SI: 0x09,
+                LinkSpec.cHFeild_SI: LinkSpec.cSessionID_TestSession,
                 LinkSpec.cHFeild_PSN: param_dict[LinkSpec.cHFeild_PSN]})
             pl_bytes = LinkPacket.gen_test_request_data_payload(count=req_pkt_count)
             skdebug('pl_bytes:', pl_bytes.hex())
             return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes)
 
-    def __init__(self, packet_bytes=None, header_bytes=None, payload_bytes=None, auto_update_pl=True):
-        if auto_update_pl:
-            self.mAutoUpdatePL = True
-        else:
-            self.mAutoUpdatePL = False
-        if packet_bytes != None:
-            self.update_packet_with_bytes(packet_bytes)
-        elif header_bytes != None:
-            self.update_header_with_bytes(header_bytes)
-            if payload_bytes != None:
-                skdebug('payload_bytes:', payload_bytes)
-                self.update_payload_with_bytes(payload_bytes)
-                self.update_packet_length(len(header_bytes)+len(payload_bytes))
-            else:
-                self.update_packet_length(len(header_bytes))
-
-    def update_packet_length(self, pkt_len):
+    def update_packet_length(self, pkt_len, auto_update_hc):
         if self.mAutoUpdatePL:
-            self.mHeader.update_packet_length(pkt_len)
+            self.mHeader.update_packet_length(pkt_len, auto_update_hc)
 
     def update_packet_with_bytes(self, packet_bytes: bytes):
         self.update_header_with_bytes(packet_bytes[:10])
@@ -339,13 +412,14 @@ class LinkPacket(object):
 
     def info_string(self):
         if hasattr(self, "mPayloadData"):
-            skdebug('mPayloadChecksum:', hex(self.mPayloadChecksum))
+            # skdebug('mPayloadChecksum:', hex(self.mPayloadChecksum))
             if self.is_syn_packet() or self.is_syn_ack_packet():
                 payload_info = LinkSynPayload(payload_bytes=self.mPayloadBytes).info_string()
             elif self.is_eak_packet():
-                pass
+
+                payload_info = LinkEAKPayload(payload_bytes=self.mPayloadBytes).info_string()
             else:
-                payload_info = ' PD: {}  PC: 0x{:04X}'.format(self.mPayloadData.hex(), self.mPayloadChecksum)
+                payload_info = ' PD: 0x{}  PC: 0x{:04X}'.format(self.mPayloadData.hex(), self.mPayloadChecksum)
         else:
             payload_info = ''
         return self.mHeader.info_string()+payload_info
@@ -369,7 +443,8 @@ class LinkPacket(object):
                 self.mHeader.mControlByte.mEAK == 0 and \
                 self.mHeader.mControlByte.mACK == 0 and \
                 self.mHeader.mControlByte.mNAK == 0 and \
-                self.mHeader.mControlByte.mRST == 0:
+                self.mHeader.mControlByte.mRST == 0 and \
+                self.mHeader.mSessionId == 0:
             return True
         return False
 
@@ -378,7 +453,8 @@ class LinkPacket(object):
                 self.mHeader.mControlByte.mEAK == 0 and \
                 self.mHeader.mControlByte.mACK == 1 and \
                 self.mHeader.mControlByte.mNAK == 0 and \
-                self.mHeader.mControlByte.mRST == 0:
+                self.mHeader.mControlByte.mRST == 0 and \
+                self.mHeader.mSessionId == 0:
             return True
         return False
 
@@ -388,7 +464,19 @@ class LinkPacket(object):
                 self.mHeader.mControlByte.mACK == 1 and \
                 self.mHeader.mControlByte.mNAK == 0 and \
                 self.mHeader.mControlByte.mRST == 0 and \
+                self.mHeader.mSessionId == 0 and \
                 self.mHeader.mPacketSeqNum == 0:  # ACK包PSN必须为0
+            return True
+        return False
+
+    def is_eak_packet(self):
+        if self.mHeader.mControlByte.mSYN == 0 and \
+                self.mHeader.mControlByte.mEAK == 1 and \
+                self.mHeader.mControlByte.mACK == 1 and \
+                self.mHeader.mControlByte.mNAK == 0 and \
+                self.mHeader.mControlByte.mRST == 0 and \
+                self.mHeader.mSessionId == 0 and \
+                self.mHeader.mPacketLength > 12:
             return True
         return False
 
@@ -409,9 +497,23 @@ class LinkPacket(object):
         elif self.mHeader.mControlByte.mNAK == 0:
             return True
 
-    def is_eak_packet(self):
-        return False
+def PacketTypeMatch(packet:LinkPacket, type:PacketType):
+    if type == PacketType.SYN:
+        return packet.is_syn_packet()
+    elif type == PacketType.SYN_ACK:
+        return packet.is_syn_ack_packet()
+    elif type == PacketType.ACK:
+        return packet.is_ack_packet()
+    elif type == PacketType.NoNAK:
+        return packet.is_nonak_packet()
+    elif type == PacketType.NoNAK_ACK:
+        return packet.is_nonak_ack_packet()
+    elif type == PacketType.EAK:
+        return packet.is_eak_packet()
+    return False
 
+def IsNoNakPacket(packet:LinkPacket):
+    return packet.is_nonak_packet() or packet.is_nonak_ack_packet()
 
 if __name__ == "__main__":
     print('test begin')

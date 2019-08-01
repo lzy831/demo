@@ -257,7 +257,7 @@ def SoC_SYN_ONCE_IE001():
         Library_Open_Transport()
         Library_Send_RST()
         Library_Received_Acceptable_SYN_In_Time()
-        Library_Send_BAD_SOP_PKT()
+        Library_Send_BAD_PKT_INVALID_SOP()
         Library_Reply_SYN()
         Library_Received_ACK_In_Time()
         Library_Received_Nothing_In_Time()

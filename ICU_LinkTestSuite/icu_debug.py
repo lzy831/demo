@@ -3,7 +3,7 @@
 
 
 from robot.api import logger
-
+import inspect
 import logging
 
 plogger = logging.getLogger()
@@ -19,6 +19,8 @@ consoleHandler.setFormatter(formatter)
 plogger.addHandler(consoleHandler)
 
 def skdebug(*args):
+    frame,filename,line_number,function_name,lines,index = inspect.stack()[1]
+    # s = function_name + ': '
     s = ''
     for i in args:
         s += (str(i) + ' ')
@@ -31,3 +33,20 @@ def skdebug(*args):
 
     # plogger.debug(s)
     # logger.debug(s)
+
+
+def sk_library_api_begin():
+    frame,filename,line_number,function_name,lines,index = inspect.stack()[1]
+    skdebug("[Robot Test Library API]",function_name,'Begin')
+
+def sk_library_api_end():
+    frame,filename,line_number,function_name,lines,index = inspect.stack()[1]
+    skdebug("[Robot Test Library API]",function_name,'End')
+
+def sk_api_begin():
+    frame,filename,line_number,function_name,lines,index = inspect.stack()[1]
+    skdebug(function_name,'Begin')
+
+def sk_api_end():
+    frame,filename,line_number,function_name,lines,index = inspect.stack()[1]
+    skdebug(function_name,'End')

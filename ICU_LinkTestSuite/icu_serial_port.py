@@ -6,6 +6,7 @@ import queue
 import threading
 import time
 from icu_debug import *
+from icu_error import *
 from icu_link_packet import *
 
 
@@ -147,18 +148,26 @@ class SerialPort(object):
                     skdebug('invalid header')
                     continue
 
+                packet_detect_time = time.time()
                 skdebug('!!!!!!!!!!!!!!!!!!!!!! recv a pkt:')
                 # skdebug('header info:', header_obj.info_string())
 
-                payload_data = bytes()
+                payload_bytes = bytes()
                 payload_len = header_obj.mPacketLength - LinkSpec.cLinkPacketHeaderLength
+                skdebug('payload len:', payload_len)
                 if payload_len > 0:
-                    payload_data = self.mSerialPortObj.read(payload_len)
-                    assert len(payload_data) == payload_len
-                    # debug_syn_payload(payload_data)
+                    payload_bytes = self.mSerialPortObj.read(payload_len)
+                    assert len(payload_bytes) == payload_len
+                    # debug_syn_payload(payload_bytes)
 
                 if not self.mRecvQueue.full():
-                    self.mRecvQueue.put(header_bytes+payload_data)
+                    if payload_len > 0:
+                        skdebug((header_bytes+payload_bytes).hex())
+                        pkt = LinkPacket(header_bytes=header_bytes, payload_bytes=payload_bytes, recv_time=packet_detect_time)
+                    else:
+                        skdebug(header_bytes.hex())
+                        pkt = LinkPacket(header_bytes=header_bytes, recv_time=packet_detect_time)
+                    self.mRecvQueue.put(pkt)
                 else:
                     skdebug('queue is full')
             except serial.SerialException:
@@ -183,16 +192,16 @@ class SerialPort(object):
             while not self.mSendQueue.empty():
                 time.sleep(0.01)
             skdebug('Send to Remote Done')
+            return time.time()
         else:
             skdebug('serial not open')
+            raise RobotTestFlowException
 
     def RecvPacket(self, timeout=0.1):
         skdebug('RecvPacket')
         if self.mSerialPortObj != None and self.mRecvQueue != None:
             try:
-                packet = self.mRecvQueue.get(True, timeout)
-                # skdebug('type(packet):', type(packet))
-                skdebug('get a packet from queue:', packet.hex())
+                packet: LinkPacket = self.mRecvQueue.get(True, timeout)
                 return packet
             except queue.Empty as e:
                 # skdebug('queue empty:', e)

@@ -51,8 +51,11 @@ class LinkSpec(object):
     cLinkSynPayloadTupleType = namedtuple('LinkSynPayloadTuple', cLinkSynPayloadField)
 
 
+    cHFeild_RemoteMRPL = 'RemoteMaxRecvPktLen'
+
 
     #### Test Session
+    cSessionID_TestSession = 0x9
     cTestSession_CmdID_RequestData = 0x2
 
     #### Request Data
@@ -62,3 +65,5 @@ class LinkSpec(object):
     cLinkTestSession_RequestData_Format = '>BBH'
     cLinkTestSession_RequestData_Field = cHFeild_TestCommondID+' '+cHFeild_NoNakCount+' '+ cHFeild_NoNakPayloadMaxSize
     cLinkTestSession_RequestData_TupleType = namedtuple('TestSessionRequestDataTuple', cLinkTestSession_RequestData_Field)
+
+

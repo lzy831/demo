@@ -231,9 +231,10 @@ def Library_Update_Invalid_SYN_Negotiable_Param():
 
 
 def Library_Send_RST():
+    sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
-    skdebug('[Library] Send_RST begin')
     session.SendRst()
+    sk_library_api_end()
 
 
 def Library_Send_Random_EAK():
@@ -272,10 +273,16 @@ def Library_Send_APP():
     session.SendApp()
 
 
-def Library_Send_BAD_SOP_PKT():
+def Library_Send_BAD_PKT_INVALID_SOP():
     session: LinkSession = LinkSession.GetInstance()
     skdebug('[Library] Send_BAD_SOP_PKT begin')
     session.SendBadPkt(BadPktType.BAD_SOP)
+
+
+def Library_Send_BAD_CB_PKT():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Send_BAD_CB_PKT begin')
+    session.SendBadPkt(BadPktType.BAD_CB)
 
 
 def Library_Send_BAD_PL_PKT():
@@ -284,10 +291,58 @@ def Library_Send_BAD_PL_PKT():
     session.SendBadPkt(BadPktType.BAD_PL)
 
 
+def Library_Send_BAD_PL_2_PKT():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Send_BAD_PL_2_PKT begin')
+    session.SendBadPkt(BadPktType.BAD_PL_2)
+
+
 def Library_Send_BAD_PAN_PKT():
     session: LinkSession = LinkSession.GetInstance()
     skdebug('[Library] Send_BAD_PAN_PKT begin')
     session.SendBadPkt(BadPktType.BAD_PAN)
+
+
+def Library_Send_BAD_PKT_PSN_OUT_OF_RECV_WIN():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Send_BAD_PSN_PKT begin')
+    session.SendBadPkt(BadPktType.PSN_OUT_OF_RECV_WIN)
+
+
+def Library_Send_BAD_PKT_WITH_NONEED_PAN():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Send_WITH_NONEED_PAN_PKT begin')
+    session.SendBadPkt(BadPktType.WITH_NONEED_PAN)
+
+
+def Library_Send_BAD_PKT_INVALID_ACK():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Send_BAD_PKT_INVALID_ACK begin')
+    session.SendBadPkt(BadPktType.INVALID_ACK)
+
+
+def Library_Send_BAD_PKT_INVALID_SESSION_ID():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Send_BAD_PKT_INVALID_SESSION_ID begin')
+    session.SendBadPkt(BadPktType.INVALID_SESSION_ID)
+
+
+def Library_Send_BAD_PKT_INCORRECT_HC():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Send_BAD_PKT_INCORRECT_HC begin')
+    session.SendBadPkt(BadPktType.INCORRECT_HC)
+
+
+def Library_Send_BAD_PKT_INCORRECT_PC():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Send_BAD_PKT_INCORRECT_PC begin')
+    session.SendBadPkt(BadPktType.INCORRECT_PC)
+
+
+def Library_Send_BAD_PKT_SYN_INVALID_DATA():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Send_BAD_PKT_SYN_INVALID_DATA begin')
+    session.SendBadPkt(BadPktType.SYN_INVALID_DATA)
 
 
 def Library_Send_OverLength_PKT():
@@ -296,42 +351,52 @@ def Library_Send_OverLength_PKT():
     session.SendBadPkt(BadPktType.OVER_MAX_LEN)
 
 
-def Library_Received_Acceptable_SYN_In_Time():
+def Library_Send_BAD_PKT_OVER_MAX_RECV_LEN_TEST_NONAK():
+    sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
-    skdebug('[Library] Received_Acceptable_SYN_In_Time begin')
-    syn_pkt_obj = session.RecviveSyn(timeout=2)
-    lsp_obj = LinkSynPayload(payload_bytes=syn_pkt_obj.mPayloadBytes)
-    if not session.CanAccpetSynParam(lsp_obj):
+    session.SendBadPkt(BadPktType.OVER_MAX_RECV_LEN_TEST_NONAK)
+    sk_library_api_end()
+
+
+def Library_Received_Acceptable_SYN_In_Time():
+    sk_library_api_begin()
+    session: LinkSession = LinkSession.GetInstance()
+    pkt = session.ReceiveOneSpecificPacket(PacketType.SYN)
+    lsp = LinkSynPayload(payload_bytes=pkt.mPayloadBytes)
+    if not session.CanAccpetSynParam(lsp):
         skdebug('not a acceptable syn param')
         raise RobotTestFlowException
+    sk_library_api_end()
 
 
 def Library_Received_Acceptable_SYN_ACK_In_Time():
+    sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
-    skdebug('[Library] Received_Acceptable_SYN_In_Time begin')
-    syn_pkt_obj = session.RecviveSynAck(timeout=2)
-    lsp_obj = LinkSynPayload(payload_bytes=syn_pkt_obj.mPayloadBytes)
-    if not session.CanAccpetSynParam(lsp_obj):
+    pkt = session.ReceiveOneSpecificPacket(PacketType.SYN_ACK)
+    lsp = LinkSynPayload(payload_bytes=pkt.mPayloadBytes)
+    if not session.CanAccpetSynParam(lsp):
         skdebug('not a acceptable syn param')
         raise RobotTestFlowException
+    sk_library_api_end()
 
 
 def Library_Received_Negotiable_SYN_In_Time():
+    sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
-    skdebug('[Library] Received_Negotiable_SYN_In_Time begin')
-    syn_pkt_obj = session.RecviveSyn(timeout=2)
-    lsp_obj = LinkSynPayload(payload_bytes=syn_pkt_obj.mPayloadBytes)
-    if not session.IsNegotiableSynParam(lsp_obj):
+    pkt = session.ReceiveOneSpecificPacket(PacketType.SYN)
+    lsp = LinkSynPayload(payload_bytes=pkt.mPayloadBytes)
+    if not session.IsNegotiableSynParam(lsp):
         skdebug('not a negotiable syn param')
         raise RobotTestFlowException
+    sk_library_api_end()
 
 
 def Library_Received_Repeat_SYN_In_Time():
     session: LinkSession = LinkSession.GetInstance()
     skdebug('[Library] Received_Repeat_SYN_In_Time begin')
-    syn_pkt_obj = session.RecviveSyn(timeout=2)
-    lsp_obj = LinkSynPayload(payload_bytes=syn_pkt_obj.mPayloadBytes)
-    if not session.IsRepeatSynParam(lsp_obj):
+    pkt = session.ReceiveOneSpecificPacket(PacketType.SYN)
+    lsp = LinkSynPayload(payload_bytes=pkt.mPayloadBytes)
+    if not session.IsRepeatSynParam(lsp):
         raise RobotTestFlowException
 
 
@@ -347,16 +412,40 @@ def Library_Retransmit_SYN_ACK():
     session.RetransmitSynAck()
 
 
-def Library_Send_Negotiated_SYN_ACK():
+def Library_Retransmit_Previous_NoNAK():
     session: LinkSession = LinkSession.GetInstance()
-    skdebug('[Library] Send_Negotiated_SYN_ACK begin')
+    skdebug('[Library] Retransmit_Previous_NoNAK begin')
+    session.RetransmitPreviousNoNAK()
+
+
+def Library_Retransmit_First_NoNAK_In_SentQ():
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('[Library] Retransmit_First_NoNAK_In_SentQ begin')
+    session.RetransmitFirstNoNAKInSentQ()
+
+
+def Library_Send_Negotiated_SYN_ACK():
+    sk_library_api_begin()
+    session: LinkSession = LinkSession.GetInstance()
     session.ForceNegotiateSyn()
+    sk_library_api_end()
+
+
+def Library_Received_EAK_In_Time():
+    sk_library_api_begin()
+    session: LinkSession = LinkSession.GetInstance()
+    pkt = session.ReceiveOneSpecificPacket(PacketType.EAK)
+    eakp = LinkEAKPayload(payload_bytes=pkt.mPayloadBytes)
+    sk_library_api_end()
 
 
 def Library_Received_ACK_In_Time():
+    sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
-    skdebug('[Library] Received_ACK_In_Time begin')
-    session.RecviveAck(timeout=2)
+    pkt = session.ReceiveOneSpecificPacket(PacketType.ACK)
+    if not session.IsValidPan(pkt.mHeader.mPacketAckNum):
+        raise RobotTestFlowException
+    sk_library_api_end()
 
 
 def Library_Received_Nothing_In_Time():
@@ -366,21 +455,65 @@ def Library_Received_Nothing_In_Time():
 
 
 def Library_Received_Test_NoNAK():
+    sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
-    skdebug('[Library] Received_Test_NoNAK begin')
-    session.RecviveTestNoNAK(timeout=2)
+    session.ReceiveOneSpecificPacket(PacketType.NoNAK)
+    sk_library_api_end()
 
 
 def Library_Received_Test_NoNAK_With_ACK():
+    sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
-    skdebug('[Library] Received_Test_NoNAK_With_ACK begin')
-    session.RecviveTestNoNAKWithAck(timeout=2)
-    skdebug('[Library] Received_Test_NoNAK_With_ACK end')
+    pkt = session.ReceiveOneSpecificPacket(PacketType.NoNAK_ACK)
+    if not session.IsValidPan(pkt.mHeader.mPacketAckNum):
+        raise RobotTestFlowException
+    sk_library_api_end()
+
+
+def Library_Received_Twice_Test_NoNAK_ACK_In_LimitTime():
+    sk_library_api_begin()
+    session: LinkSession = LinkSession.GetInstance()
+    # session.RecviveTwiceTestNoNAKInTime()
+
+    first_pkt = session.ReceiveOneSpecificPacket(type=PacketType.NoNAK)
+    second_pkt = session.ReceiveOneSpecificPacket(type=PacketType.NoNAK)
+    skdebug('1th pkt recv time:', first_pkt.mRecvTime)
+    skdebug('2th pkt recv time:', second_pkt.mRecvTime)
+    diff_time = (second_pkt.mRecvTime - first_pkt.mRecvTime)*1000
+    skdebug('diff time:', diff_time)
+    limit = session.mRetransTimeout*1.1
+    skdebug('limit:', limit)
+    if(diff_time > limit):
+        raise RobotTestFlowException
+    sk_library_api_end()
+
+
+def Library_Test_Send_NoNAK_PKT_And_Received_ACK_In_LimitTime():
+    sk_library_api_begin()
+    session: LinkSession = LinkSession.GetInstance()
+
+    sent_pkt = session.TestSendNoNAK()
+    skdebug('send time:', sent_pkt.mSentTime)
+
+    recv_pkt = session.ReceiveOneSpecificPacket(type=PacketType.ACK)
+    if not session.IsValidPan(recv_pkt.mHeader.mPacketAckNum):
+        raise RobotTestFlowException
+    skdebug('recv time:', recv_pkt.mRecvTime)
+    diff_time = (recv_pkt.mRecvTime - sent_pkt.mSentTime)*1000
+
+    skdebug('diff time:', diff_time)
+    limit = session.mCumAckTimeout
+    skdebug('limit:', limit)
+    if(diff_time > limit):
+        raise RobotTestFlowException
+    sk_library_api_end()
+
 
 def Library_Received_MaxCumAckCount_Test_NoNAK():
     session: LinkSession = LinkSession.GetInstance()
     skdebug('[Library] Received_MaxCumAckCount_NoNAK begin')
     session.RecviveMaxCumAckCountTestNoNAKWithAck(timeout=2)
+
 
 def Library_SYN_Complete():
     session: LinkSession = LinkSession.GetInstance()
@@ -395,9 +528,37 @@ def Library_Test_Start():
 
 
 def Library_Test_Send_NoNAK_PKT():
+    sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
-    skdebug('[Library] Test_Send_NoNAK_PKT begin')
     session.TestSendNoNAK()
+    sk_library_api_end()
+
+
+def Library_Test_Send_NoNAK_PKT_SKIP_ONE_PSN():
+    sk_library_api_begin()
+    session: LinkSession = LinkSession.GetInstance()
+    session.TestSendNoNAK(skip_psn=1)
+    sk_library_api_end()
+
+
+def Library_Test_Send_MNOOSP_NoNAK_PKT():
+    sk_library_api_begin()
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('MaxCumAck:', session.mState.mRemoteMaxNumOfOutStdPkts)
+    for i in range(0, session.mState.mRemoteMaxNumOfOutStdPkts):
+        skdebug('TestSendNoNAK send ndx:', i)
+        session.TestSendNoNAK()
+    sk_library_api_end()
+
+
+def Library_Test_Send_MCA_NoNAK_PKT():
+    sk_library_api_begin()
+    session: LinkSession = LinkSession.GetInstance()
+    skdebug('MaxCumAck:', session.mMaxCumAck)
+    for i in range(0, session.mMaxCumAck):
+        skdebug('TestSendNoNAK send ndx:', i)
+        session.TestSendNoNAK()
+    sk_library_api_end()
 
 
 def Library_Test_Request_NoNAK_PKT():
