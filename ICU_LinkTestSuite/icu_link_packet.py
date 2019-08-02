@@ -4,24 +4,25 @@
 import random
 import struct
 from enum import Enum
-
 from icu_link_spec import *
 from icu_debug import *
 from icu_checksum import *
 from icu_link_syn_payload import *
 from icu_link_eak_payload import *
 
-PacketType = Enum('PacketType', (
-    'SYN',
-    'SYN_ACK',
-    'ACK',
-    'NoNAK',
-    'NoNAK_ACK',
-    'EAK'
-    ))
+
+class PacketType(Enum):
+    SYN = 0
+    SYN_ACK = 1
+    ACK = 2
+    EAK = 3
+    NAK = 4
+    NoNAK = 5
+    NoNAK_ACK =6
+
 
 class BadPktType(Enum):
-    BAD_SOP = 0
+    INVALID_SOP = 0
     BAD_PL = 1
     BAD_PL_2 = 2
     BAD_PAN = 3
@@ -42,8 +43,6 @@ class TestPktType(Enum):
     TEST_STOP = 1
     TEST_DATA_NONAK = 2
     TEST_REQUEST_NONAK = 3
-
-
 
 
 class ControlByte(object):
@@ -153,8 +152,8 @@ class LinkPacketHeader(object):
 
 class LinkPacket(object):
 
-    def __init__(self, packet_bytes=None, header_bytes=None, payload_bytes=None, 
-                    auto_update_pl=True, auto_update_hc=True, recv_time=None):
+    def __init__(self, packet_bytes=None, header_bytes=None, payload_bytes=None,
+                 auto_update_pl=True, auto_update_hc=True, recv_time=None):
         if auto_update_pl:
             self.mAutoUpdatePL = True
         else:
@@ -173,6 +172,15 @@ class LinkPacket(object):
                 self.update_packet_length(len(header_bytes)+len(payload_bytes), auto_update_hc)
             else:
                 self.update_packet_length(len(header_bytes), auto_update_hc)
+
+    def psn(self):
+        return self.mHeader.mPacketSeqNum
+
+    def pan(self):
+        return self.mHeader.mPacketAckNum
+
+    def max_cum_ack(self):
+        return self
 
     def gen_test_start_payload():
         pdata = bytearray(b'\x00')
@@ -225,6 +233,15 @@ class LinkPacket(object):
         pl_bytes = LinkPacket.gen_random_payload()
         return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes)
 
+    def gen_eak_packet(pan, outseq_psn_list):
+        header = LinkPacketHeader(header_dict={
+            LinkSpec.cHFeild_ACK: 1,
+            LinkSpec.cHFeild_EAK: 1,
+            LinkSpec.cHFeild_PAN: pan})
+        payload = LinkEAKPayload(pan=pan, psn_list=outseq_psn_list)
+        skdebug('payload bytes:', payload.to_bytes().hex())
+        return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=payload.to_bytes())
+
     def gen_nak_packet():
         header = LinkPacketHeader(header_dict={LinkSpec.cHFeild_NAK: 1})
         pl_bytes = LinkPacket.gen_random_payload()
@@ -252,8 +269,8 @@ class LinkPacket(object):
         return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=payload.to_bytes())
 
     def gen_bad_packet(type, param_dict: dict = None):
-        if type == BadPktType.BAD_SOP:
-            skdebug('BAD_SOP')
+        if type == BadPktType.INVALID_SOP:
+            skdebug('INVALID_SOP')
             random_sop = random.randint(0, 65535)
             header = LinkPacketHeader(header_dict={LinkSpec.cHFeild_SOP: random_sop})
             pl_bytes = LinkPacket.gen_random_payload()
@@ -416,7 +433,6 @@ class LinkPacket(object):
             if self.is_syn_packet() or self.is_syn_ack_packet():
                 payload_info = LinkSynPayload(payload_bytes=self.mPayloadBytes).info_string()
             elif self.is_eak_packet():
-
                 payload_info = LinkEAKPayload(payload_bytes=self.mPayloadBytes).info_string()
             else:
                 payload_info = ' PD: 0x{}  PC: 0x{:04X}'.format(self.mPayloadData.hex(), self.mPayloadChecksum)
@@ -481,23 +497,26 @@ class LinkPacket(object):
         return False
 
     def is_nonak_ack_packet(self):
+        # 携带ACK信息的NoNak数据包
         if self.mHeader.mControlByte.mSYN == 0 and \
                 self.mHeader.mControlByte.mEAK == 0 and \
                 self.mHeader.mControlByte.mACK == 1 and \
                 self.mHeader.mControlByte.mNAK == 0 and \
-                self.mHeader.mControlByte.mRST == 0:
+                self.mHeader.mControlByte.mRST == 0 and \
+                self.mHeader.mPacketLength > 12:
             return True
         return False
 
     def is_nonak_packet(self):
         if self.is_syn_packet() or self.is_syn_ack_packet() or self.is_nonak_ack_packet():
             return True
-        elif self.is_ack_packet():
+        elif self.is_ack_packet() or self.is_eak_packet():
             return False
         elif self.mHeader.mControlByte.mNAK == 0:
             return True
 
-def PacketTypeMatch(packet:LinkPacket, type:PacketType):
+
+def PacketTypeMatch(packet: LinkPacket, type: PacketType):
     if type == PacketType.SYN:
         return packet.is_syn_packet()
     elif type == PacketType.SYN_ACK:
@@ -512,8 +531,14 @@ def PacketTypeMatch(packet:LinkPacket, type:PacketType):
         return packet.is_eak_packet()
     return False
 
-def IsNoNakPacket(packet:LinkPacket):
+
+def IsNoNakPacket(packet: LinkPacket):
     return packet.is_nonak_packet() or packet.is_nonak_ack_packet()
+
+
+def IsEakPacket(packet: LinkPacket):
+    return packet.is_eak_packet()
+
 
 if __name__ == "__main__":
     print('test begin')

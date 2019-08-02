@@ -15,184 +15,7 @@ from icu_debug import *
 # @keyword('Ba La Ba La')
 # def example_keyword():
 # 	skdebug('Hello, world!')
-
 ##########################################################
-# def send_syn_packet(**param):
-#     for name, value in param.items():
-#         skdebug('name:', name, 'value:', value)
-
-
-class RobotTimeoutError(TimeoutError):
-    ROBOT_CONTINUE_ON_FAILURE = True
-
-
-##########################################################
-
-
-# def Library_Flush_Transport():
-#     flush_serial_transport()
-
-
-# def Library_Reset_Transport():
-#     reset_serial_transport()
-
-
-# def Library_Send_RST_To_Remote():
-#     skdebug('[Library] Send_RST_To_Remote')
-#     global Valid_RST_Header_param
-#     packet = generate_header_with_param(**Valid_RST_Header_param)
-#     send_packet_to_remote(packet)
-
-
-# def Library_Send_SYN_To_Soc(**param):
-#     skdebug('[Library] Send_SYN_Packet_To_Soc')
-#     payload = generate_syn_payload_with_param(**param)
-#     skdebug('type(payload):', type(payload))
-#     payload_len = len(payload)
-#     skdebug('payload_len:', payload_len)
-#     pkt_len = LinkSynPayloadLength+LinkPacketHeaderLength
-
-#     header_param = dict(SYN=1, PacketLength=pkt_len)
-#     # get the PSN from icu_serial
-#     header_param['PacketSeqNum'] = get_next_transport_psn()
-#     header = generate_header_with_param(**header_param)
-#     send_packet_to_remote(header+payload)
-
-
-# def Library_Send_SYN_ACK_To_SoC(psn):
-#     skdebug('[Library] Send_SYN_ACK_To_SoC')
-#     global MCU_Negotiated_SYN_Param
-#     param = copy.deepcopy(MCU_Negotiated_SYN_Param)
-#     param['PacketAckNum'] = int(psn)
-#     param['PacketSeqNum'] = get_next_transport_psn()
-#     skdebug('MCU_Negotiated_SYN_Param', MCU_Negotiated_SYN_Param)
-#     skdebug('param', param)
-#     packet = generate_standard_SYN_ACK_packet(**param)
-#     packet_param = get_packet_param(packet)
-#     skdebug('send packet param:', packet_param)
-#     send_packet_to_remote(packet)
-#     return packet_param
-
-
-# def Library_Reply_SYN_ACK_To_Remote(**param):
-#     skdebug(sys._getframe().f_code.co_filename)
-#     param['PacketAckNum'] = int(param.get('PacketSeqNum', 0))
-#     param['PacketSeqNum'] = get_next_transport_psn()
-#     packet = generate_standard_SYN_ACK_packet(**param)
-#     packet_param = get_packet_param(packet)
-#     skdebug('send packet param:', packet_param)
-#     send_packet_to_remote(packet)
-#     return packet_param
-
-
-# def Library_Send_NAK_to_Soc(**param):
-#     skdebug(sys._getframe().f_code.co_filename)
-#     payload = generate_nak_payload_with_param(**param)
-#     pkt_len = len(payload)+LinkPacketHeaderLength
-#     header_param = dict(NAK=1, PacketLength=pkt_len)
-#     header = generate_header_with_param(**header_param)
-#     packet = header+payload
-#     packet_param = get_packet_param(packet)
-#     skdebug('send packet param:', packet_param)
-#     send_packet_to_remote(packet)
-
-
-# def Library_Get_PSN_From_Param(**param):
-#     skdebug('[Library] Get_PSN_From_Param')
-#     skdebug(sys._getframe().f_code.co_filename)
-#     return param['PacketSeqNum']
-
-
-# def Library_MCU_Can_Accept_SYN_Param(**param):
-#     skdebug('[Library] MCU_Can_Accept_SYN_Param')
-#     skdebug('syn_param:', param)
-#     # for name, value in param.items():
-#     #     skdebug('name:', name, 'value:', value)
-#     return True
-
-
-# def Library_Hold_On_A_While():
-#     skdebug('[Library] Hold_On_A_While begin')
-#     time.sleep(5)
-#     skdebug('[Library] Hold_On_A_While end')
-
-
-# def Library_Receive_SYN_ACK_In_Time(timeout=2, **param):
-#     skdebug('[Library] Receive_SYN_ACK_In_Time')
-#     start_time = time.time()
-#     while True:
-#         packet = recv_packet_from_remote()
-#         if packet != None:
-#             skdebug('received a packet')
-#         else:
-#             # skdebug('recv timeout and to retry')
-#             pass
-
-#         if(time.time()-start_time > float(timeout)):
-#             skdebug('timeout')
-#             return False
-#     return True
-
-
-# def Library_SYN_Negotiated_Param_Can_Match(**recv_param):
-#     skdebug('[Library] SYN_Negotiated_Param_Can_Match')
-#     global MCU_Negotiated_SYN_Param
-#     skdebug(recv_param)
-#     if(recv_param['LinkVersion'] == MCU_Negotiated_SYN_Param['LinkVersion'] and
-#             recv_param['RetransTimeout'] == MCU_Negotiated_SYN_Param['RetransTimeout'] and
-#             recv_param['CumAckTimeout'] == MCU_Negotiated_SYN_Param['CumAckTimeout'] and
-#             recv_param['MaxNumOfRetrans'] == MCU_Negotiated_SYN_Param['MaxNumOfRetrans'] and
-#             recv_param['MaxCumAck'] == MCU_Negotiated_SYN_Param['MaxCumAck']):
-#         return True
-#     return False
-
-
-# def Library_Receive_SYN_In_Time(timeout=2):
-#     skdebug('[Library] Recvive_SYN_In_Time')
-#     global Valid_SYN_Header_Param
-#     return received_specified_packet_in_time(timeout=2, **Valid_SYN_Header_Param)
-
-
-# def Library_Received_ACK_In_Time(timeout=2, **param):
-#     skdebug('[Library] Received_ACK_In_Time')
-#     skdebug('param:', param)
-#     global Valid_ACK_Header_Param
-#     ack_param = {**Valid_ACK_Header_Param, **{'PacketAckNum': param.get('PacketSeqNum')}}
-#     skdebug('Valid_ACK_Header_Param:', Valid_ACK_Header_Param)
-#     skdebug('ack_param:', ack_param)
-#     return received_specified_packet_in_time(timeout=2, **ack_param)
-
-
-# def Library_Receive_Nothing_In_Time(timeout=2):
-#     skdebug('[Library] Receive_Nothing_In_Time')
-#     start_time = time.time()
-#     while True:
-#         packet = recv_packet_from_remote()
-#         if packet != None:
-#             return False
-#         cost_time = time.time()-start_time
-#         if(cost_time > float(timeout)):
-#             skdebug('timeout cost_time:', cost_time)
-#             skdebug('[Library] Receive_Nothing_In_Time Succeed')
-#             return True
-
-
-# def Library_Set_MCU_Default_Param(**param):
-#     skdebug('[Library] Set_MCU_Default_Param')
-#     global MCU_Default_SYN_Param
-#     skdebug('param:', param)
-#     MCU_Default_SYN_Param.clear()
-#     MCU_Default_SYN_Param = {**param}
-#     skdebug('MCU_Default_SYN_Param:', MCU_Default_SYN_Param)
-
-
-# def Library_Set_MCU_Negotiated_Param(**param):
-#     skdebug('[Library] Set_MCU_Negotiated_Param')
-#     global MCU_Negotiated_SYN_Param
-#     skdebug('param:', param)
-#     MCU_Negotiated_SYN_Param.clear()
-#     MCU_Negotiated_SYN_Param = {**param}
-#     skdebug('MCU_Negotiated_SYN_Param:', MCU_Negotiated_SYN_Param)
 
 def Library_Open_Transport():
     session: LinkSession = LinkSession.GetInstance()
@@ -273,10 +96,17 @@ def Library_Send_APP():
     session.SendApp()
 
 
+def Library_Send_EAK():
+    sk_library_api_begin()
+    session: LinkSession = LinkSession.GetInstance()
+    session.SendEAK()
+    sk_library_api_end()
+
+
 def Library_Send_BAD_PKT_INVALID_SOP():
     session: LinkSession = LinkSession.GetInstance()
     skdebug('[Library] Send_BAD_SOP_PKT begin')
-    session.SendBadPkt(BadPktType.BAD_SOP)
+    session.SendBadPkt(BadPktType.INVALID_SOP)
 
 
 def Library_Send_BAD_CB_PKT():
@@ -434,8 +264,7 @@ def Library_Send_Negotiated_SYN_ACK():
 def Library_Received_EAK_In_Time():
     sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
-    pkt = session.ReceiveOneSpecificPacket(PacketType.EAK)
-    eakp = LinkEAKPayload(payload_bytes=pkt.mPayloadBytes)
+    session.ReceiveOneSpecificPacket(PacketType.EAK)
     sk_library_api_end()
 
 
@@ -461,7 +290,7 @@ def Library_Received_Test_NoNAK():
     sk_library_api_end()
 
 
-def Library_Received_Test_NoNAK_With_ACK():
+def Library_Received_Test_NoNAK_ACK():
     sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
     pkt = session.ReceiveOneSpecificPacket(PacketType.NoNAK_ACK)
@@ -470,11 +299,18 @@ def Library_Received_Test_NoNAK_With_ACK():
     sk_library_api_end()
 
 
+def Library_Received_Test_NoNAK_ACK_And_Drop():
+    sk_library_api_begin()
+    session: LinkSession = LinkSession.GetInstance()
+    pkt = session.ReceiveOneSpecificPacket(PacketType.NoNAK_ACK, auto_stash=False)
+    if not session.IsValidPan(pkt.mHeader.mPacketAckNum):
+        raise RobotTestFlowException
+    sk_library_api_end()
+
+
 def Library_Received_Twice_Test_NoNAK_ACK_In_LimitTime():
     sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
-    # session.RecviveTwiceTestNoNAKInTime()
-
     first_pkt = session.ReceiveOneSpecificPacket(type=PacketType.NoNAK)
     second_pkt = session.ReceiveOneSpecificPacket(type=PacketType.NoNAK)
     skdebug('1th pkt recv time:', first_pkt.mRecvTime)
@@ -509,10 +345,60 @@ def Library_Test_Send_NoNAK_PKT_And_Received_ACK_In_LimitTime():
     sk_library_api_end()
 
 
+    # def RecviveMaxCumAckCountTestNoNAKWithAck(self, timeout=2):
+    #     start_time = time.time()
+    #     needCount = self.mMaxCumAck
+    #     while needCount > 0:
+    #         pkt_bytes = self.mSerialPort.RecvPacket()
+    #         if pkt_bytes != None:
+    #             skdebug('received a packet')
+    #             link_pkt_obj = LinkPacket(packet_bytes=pkt_bytes, recv_time=time.time())
+    #             if link_pkt_obj.is_nonak_packet():
+    #                 self.mState.StashRecvPkt(link_pkt_obj)
+    #                 skdebug('recv packet is a nonak+ack packet:', link_pkt_obj.info_string())
+    #                 needCount = needCount - 1
+    #             else:
+    #                 skdebug('recv packet is not a nonak+ack packet', link_pkt_obj.info_string())
+    #         cost_time = time.time()-start_time
+    #         if(cost_time > float(timeout)):
+    #             skdebug('timeout cost_time:', cost_time)
+    #             raise RobotTimeoutError
+
 def Library_Received_MaxCumAckCount_Test_NoNAK():
+    sk_library_api_begin()
+    start_time = time.time()
     session: LinkSession = LinkSession.GetInstance()
-    skdebug('[Library] Received_MaxCumAckCount_NoNAK begin')
-    session.RecviveMaxCumAckCountTestNoNAKWithAck(timeout=2)
+    max_cum_ack = session.GetNegotiatedMaxCumAck()
+    skdebug('need recv nonak count:', max_cum_ack)
+    while max_cum_ack>0:
+        session.RecviveTwiceTestNoNAKInTime(type=PacketType.NoNAK)
+        max_cum_ack = max_cum_ack - 1
+        skdebug('need recv nonak count:', max_cum_ack)
+    cost_time = time.time()-start_time
+    if cost_time > 2:
+        raise RobotTimeoutError
+    sk_library_api_end()
+
+
+def Library_Test_Received_Missing_NoNAK():
+    sk_library_api_begin()
+    start_time = time.time()
+    session: LinkSession = LinkSession.GetInstance()
+    sent_eak = session.GetSentEAKPkt()
+    eak_payload = LinkEAKPayload(pan = sent_eak.pan(), payload_bytes=sent_eak.mPayloadBytes)
+    psn_list = eak_payload.get_missing_psn_list()
+    skdebug('psn_list:', psn_list)
+    wait_psn_queue = collections.deque()
+    for psn in psn_list:
+        wait_psn_queue.append(psn)
+    while len(wait_psn_queue) > 0:
+        pkt = session.ReceiveOneSpecificPacket(type=PacketType.NoNAK)
+        wait_psn_queue.remove(pkt.psn())
+        skdebug('wait_psn_queue:',wait_psn_queue)
+    cost_time = time.time()-start_time
+    if cost_time > 2:
+        raise RobotTimeoutError
+    sk_library_api_end()
 
 
 def Library_SYN_Complete():
@@ -534,7 +420,18 @@ def Library_Test_Send_NoNAK_PKT():
     sk_library_api_end()
 
 
-def Library_Test_Send_NoNAK_PKT_SKIP_ONE_PSN():
+def Library_Test_Send_Missing_NoNAK_PKT_According_EAK():
+    sk_library_api_begin()
+    session: LinkSession = LinkSession.GetInstance()
+    pkt: LinkPacket = session.GetRecvEAKPkt()
+    ekap = LinkEAKPayload(pan=pkt.pan(), payload_bytes=pkt.mPayloadBytes)
+    l = ekap.get_missing_psn_list(pkt.mHeader.mPacketAckNum)
+    skdebug('missing psn list:', l)
+    session.TestSendRetransmitNoNAK(psn_list=l)
+    sk_library_api_end()
+
+
+def Library_Test_Send_NoNAK_PKT_Skip_One_PSN():
     sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
     session.TestSendNoNAK(skip_psn=1)
@@ -562,15 +459,24 @@ def Library_Test_Send_MCA_NoNAK_PKT():
 
 
 def Library_Test_Request_NoNAK_PKT():
+    sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
-    skdebug('[Library] Test_Request_NoNAK_PKT begin')
     session.TestRequestNoNAK()
+    sk_library_api_end()
+
+
+def Library_Test_Request_TWO_NoNAK_PKT():
+    sk_library_api_begin()
+    session: LinkSession = LinkSession.GetInstance()
+    session.TestRequestNoNAK(count=5)
+    sk_library_api_end()
 
 
 def Library_Test_Request_MaxCumAckCount_NoNAK_PKT():
+    sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
-    skdebug('[Library] Test_Request_MaxCumAckCount_NoNAK_PKT begin')
-    session.TestRequestMaxCumAckCountNoNAK()
+    session.TestRequestNoNAK(count=session.mMaxCumAck)
+    sk_library_api_end()
 
 
 def Library_MCU_SYN():

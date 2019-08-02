@@ -13,7 +13,7 @@ consoleHandler = logging.StreamHandler()
 consoleHandler.setLevel(logging.DEBUG)
 
 # formatter = logging.Formatter('%(asctime)s - %(module)s - %(levelname)s - %(message)s')
-formatter = logging.Formatter('%(asctime)s - %(thread)d - %(message)s')
+formatter = logging.Formatter('%(asctime)s - %(thread)5d - %(message)s')
 consoleHandler.setFormatter(formatter)
 
 plogger.addHandler(consoleHandler)
@@ -37,11 +37,11 @@ def skdebug(*args):
 
 def sk_library_api_begin():
     frame,filename,line_number,function_name,lines,index = inspect.stack()[1]
-    skdebug("[Robot Test Library API]",function_name,'Begin')
+    skdebug('[Robot Test Library API]  ',function_name,'Begin')
 
 def sk_library_api_end():
     frame,filename,line_number,function_name,lines,index = inspect.stack()[1]
-    skdebug("[Robot Test Library API]",function_name,'End')
+    skdebug('[Robot Test Library API]  ',function_name,'End\n\n')
 
 def sk_api_begin():
     frame,filename,line_number,function_name,lines,index = inspect.stack()[1]
