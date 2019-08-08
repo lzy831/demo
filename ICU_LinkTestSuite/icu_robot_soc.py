@@ -281,7 +281,7 @@ def SoC_SYN_ONCE_IE002():
         Library_Open_Transport()
         Library_Send_RST()
         Library_Received_Acceptable_SYN_In_Time()
-        Library_Send_BAD_PL_PKT()
+        Library_Send_BAD_PKT_INVALID_PL_MTA()
         Library_Reply_SYN()
         Library_Received_ACK_In_Time()
         Library_Received_Nothing_In_Time()
@@ -333,10 +333,10 @@ def SoC_SYN_ONCE_FC003():
         ###############################
         Library_Send_RST()
         Library_Received_Acceptable_SYN_In_Time()
-        Library_Send_OverLength_PKT()
+        Library_Send_Bad_Pkt_OverLength()
         Library_Received_Acceptable_SYN_In_Time()
         Library_Reply_SYN()
-        Library_Send_OverLength_PKT()
+        Library_Send_Bad_Pkt_OverLength()
         Library_Received_ACK_In_Time()
         Library_Received_Nothing_In_Time()
         ###############################

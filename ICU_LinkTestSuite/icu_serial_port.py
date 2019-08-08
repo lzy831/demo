@@ -168,6 +168,7 @@ class SerialPort(object):
                         skdebug(header_bytes.hex())
                         pkt = LinkPacket(header_bytes=header_bytes, recv_time=packet_detect_time)
                     self.mRecvQueue.put(pkt)
+                    skdebug('put a pkt (psn=',pkt.psn(),') to recv queue, cur len:', self.mRecvQueue.qsize())
                 else:
                     skdebug('queue is full')
             except serial.SerialException:

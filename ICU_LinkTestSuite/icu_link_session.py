@@ -29,6 +29,10 @@ class LinkSession(object):
         self.UpdateSynDefaultParam()
         self.mState = SessionState()
 
+    def StateReset(self):
+        self.UpdateSynDefaultParam()
+        self.mState = SessionState()
+
     def UpdateSynDefaultParam(self):
         if self.mRole == LinkRole.MCU:
             self.mLinkVersion = 1
@@ -73,8 +77,9 @@ class LinkSession(object):
             LinkSpec.cHFeild_RT: self.mRetransTimeout,
             LinkSpec.cHFeild_CAT: self.mCumAckTimeout,
             LinkSpec.cHFeild_MNOR: self.mMaxNumOfRetrans,
-            LinkSpec.cHFeild_MCA: self.mMaxCumAck}
-        self.mState.Update(param_dict)
+            LinkSpec.cHFeild_MCA: self.mMaxCumAck,
+            LinkSpec.cHFeild_MNOOSP: self.mMaxNumOfOutStdPkts}
+        self.mState.SynComplete(param_dict)
 
     def DebugLinkParam(self):
         link_param_string = 'RT: {:d}  CAT: {:d}  MNOR: {:d}  MCA: {:d}'.format(self.mRetransTimeout, self.mCumAckTimeout, self.mMaxNumOfRetrans, self.mMaxCumAck)
@@ -103,6 +108,10 @@ class LinkSession(object):
             return True
         return False
 
+    def StashRemoteLinkParam(self, max_recv_pkt_len, max_num_of_out_std_pkts):
+        self.mState.StashRemoteLinkParam(
+            max_recv_pkt_len, max_num_of_out_std_pkts)
+
     def GetNegotiatedMaxCumAck(self):
         return self.mState.mNegotiatedMaxCumAck
 
@@ -118,6 +127,14 @@ class LinkSession(object):
     def GetSentEAKPkt(self):
         return self.mState.GetSentEAKPkt()
 
+    def GetLastSentPSN(self):
+        pkt = self.mState.GetLastPktFromSentQueue()
+        return pkt.psn()
+
+    def GetFirstSentPSN(self):
+        pkt = self.mState.GetPktFromSentQueue()
+        return pkt.psn()
+
     def GetLastInSequencePSN(self):
         return self.mState.GetLastInSequencePSN()
 
@@ -132,6 +149,10 @@ class LinkSession(object):
 
     def IsNegotiableSynParam(self, lsp_obj: LinkSynPayload):
         return not self.CanAccpetSynParam(lsp_obj)
+
+    def IsRepeatSynPacket(self, packet):
+        last_recv_pkt = self.mState.GetLastRecvPkt()
+        return packet.is_syn_packet() and last_recv_pkt and last_recv_pkt.psn() == packet.psn()
 
     def IsRepeatSynParam(self, lsp_obj: LinkSynPayload):
         pkt = self.mState.GetLastRecvPkt()
@@ -196,9 +217,16 @@ class LinkSession(object):
         ack_pkt = LinkPacket.gen_ack_packet(param_dict)
         return self.SendPacket(ack_pkt)
 
-    def SendSyn(self):
+    def SendSyn(self, skip_psn=0):
+        while skip_psn > 0:
+            psn = self.mState.GetNextPSN()
+            skdebug('skip psn:', psn)
+            pkt = LinkPacket.gen_test_packet(TestPktType.TEST_DATA_NONAK, param_dict={LinkSpec.cHFeild_PSN: psn})
+            self.mState.StashSentPkt(pkt)
+            skip_psn = skip_psn-1
+        psn = self.mState.GetNextPSN()
         param_dict = {
-            LinkSpec.cHFeild_PSN: self.mState.GetNextPSN(),
+            LinkSpec.cHFeild_PSN: psn,
             LinkSpec.cHFeild_LV: self.mLinkVersion,
             LinkSpec.cHFeild_MNOOSP: self.mMaxNumOfOutStdPkts,
             LinkSpec.cHFeild_MRPL: self.mMaxRecvPktLen,
@@ -211,11 +239,18 @@ class LinkSession(object):
         self.mState.StashSentPkt(syn_pkt)
         return self.SendPacket(syn_pkt)
 
-    def SendSynAck(self):
+    def SendSynAck(self, skip_psn=0):
+        while skip_psn > 0:
+            psn = self.mState.GetNextPSN()
+            skdebug('skip psn:', psn)
+            pkt = LinkPacket.gen_test_packet(TestPktType.TEST_DATA_NONAK, param_dict={LinkSpec.cHFeild_PSN: psn})
+            self.mState.StashSentPkt(pkt)
+            skip_psn = skip_psn-1
+        psn = self.mState.GetNextPSN()
         last_recv_pkt = self.mState.GetLastRecvPkt()
         skdebug('last recv packet psn:', last_recv_pkt.mHeader.mPacketSeqNum)
         param_dict = {
-            LinkSpec.cHFeild_PSN: self.mState.GetNextPSN(),
+            LinkSpec.cHFeild_PSN: psn,
             LinkSpec.cHFeild_PAN: last_recv_pkt.mHeader.mPacketSeqNum,
             LinkSpec.cHFeild_LV: self.mLinkVersion,
             LinkSpec.cHFeild_MNOOSP: self.mMaxNumOfOutStdPkts,
@@ -281,25 +316,39 @@ class LinkSession(object):
         return self.SendPacket(syn_ack_pkt)
 
     def RetransmitSynAck(self):
-        pkt = self.mState.GetLastSentPkt()
+        pkt = self.mState.GetLastPktFromSentQueue()
         if not LinkPacket.is_syn_ack_packet(pkt):
             raise RobotTestFlowException
         else:
             return self.SendPacket(pkt)
 
     def RetransmitPreviousNoNAK(self):
-        pkt = self.mState.GetLastSentPkt()
+        pkt = self.mState.GetLastPktFromSentQueue()
         return self.SendPacket(pkt)
 
     def RetransmitFirstNoNAKInSentQ(self):
-        pkt = self.mState.GetFistSentPkt()
+        pkt = self.mState.GetPktFromSentQueue()
+        return self.SendPacket(pkt)
+
+    def RetransmitThirdNoNAKInSentQ(self):
+        pkt = self.mState.GetPktFromSentQueue(index=2)
         return self.SendPacket(pkt)
 
     def SendBadPkt(self, type):
-        # last_sent_pkt:LinkPacket = self.mState.GetLastSentPkt()
+        # last_sent_pkt:LinkPacket = self.mState.GetLastPktFromSentQueue()
         last_recv_pkt: LinkPacket = self.mState.GetLastRecvPkt()
 
-        if type == BadPktType.INVALID_SOP:
+        if type == BadPktType.INVALID_SOP or \
+                type == BadPktType.INVALID_SESSION_ID or \
+                type == BadPktType.INVALID_CB or \
+                type == BadPktType.INCORRECT_HC or \
+                type == BadPktType.INCORRECT_PC or \
+                type == BadPktType.INVALID_PL_MORE_THEN_ACTUAL or \
+                type == BadPktType.INVALID_PL_LESS_THEN_ACTUAL or \
+                type == BadPktType.RST_WITH_PSN or \
+                type == BadPktType.RST_WITH_PAN or \
+                type == BadPktType.RST_WITH_INCORRECT_PL or \
+                type == BadPktType.OVER_MAX_LEN:
             psn = self.mState.GetNextPSN(autoplus=False)
         else:
             psn = self.mState.GetNextPSN()
@@ -313,7 +362,8 @@ class LinkSession(object):
         }
         bad_pkt = LinkPacket.gen_bad_packet(type, param_dict)
 
-        if type == BadPktType.WITH_NONEED_PAN:
+        if type == BadPktType.WITH_NONEED_PAN or \
+                type == BadPktType.SYN_INVALID_DATA:
             self.mState.StashSentPkt(bad_pkt)
         return self.SendPacket(bad_pkt)
 
@@ -338,6 +388,10 @@ class LinkSession(object):
         self.mState.StashSentPkt(pkt)
         return self.SendPacket(pkt)
 
+    def TestSendNoNAKSpecifiedPSN(self, specified_psn=0):
+        pkt = LinkPacket.gen_test_packet(TestPktType.TEST_DATA_NONAK, param_dict={LinkSpec.cHFeild_PSN: specified_psn})
+        return self.SendPacket(pkt)
+
     def TestSendRetransmitNoNAK(self, psn_list):
         for psn in psn_list:
             pkt = self.GetRetransmitPkt(psn)
@@ -354,10 +408,18 @@ class LinkSession(object):
     #         self.mState.StashSentPkt(pkt)
     #         return self.SendPacket(pkt)
 
-    def TestRequestNoNAK(self, count=1):
+    def TestRequestNoNAK(self, count=1, skip_psn=0):
+        while skip_psn > 0:
+            psn = self.mState.GetNextPSN()
+            skdebug('skip psn:', psn)
+            pkt = LinkPacket.gen_test_packet(TestPktType.TEST_DATA_NONAK, param_dict={LinkSpec.cHFeild_PSN: psn})
+            self.mState.StashSentPkt(pkt)
+            skip_psn = skip_psn-1
+        psn = self.mState.GetNextPSN()
         pdict = {
-            LinkSpec.cHFeild_PSN: self.mState.GetNextPSN()
+            LinkSpec.cHFeild_PSN: psn
         }
+        skdebug('req_pkt_count:', count)
         pkt = LinkPacket.gen_test_packet(TestPktType.TEST_REQUEST_NONAK, req_pkt_count=count, param_dict=pdict)
         self.mState.StashSentPkt(pkt)
         return self.SendPacket(pkt)
@@ -383,6 +445,9 @@ class LinkSession(object):
                 raise RobotTimeoutError
 
             if pkt:
+                if self.IsRepeatSynPacket(pkt):
+                    skdebug('find repeat syn pkt, skip')
+                    continue
                 if PacketTypeMatch(pkt, type):
                     skdebug('recv a packet, type:', type, pkt.info_string())
                     if auto_stash:
@@ -394,6 +459,18 @@ class LinkSession(object):
                 else:
                     skdebug('recv a packet, but type not match', pkt.info_string())
                     raise RobotTestFlowException
+
+    def RecviveNothing(self, timeout=2):
+        start_time = time.time()
+        while True:
+            pkt = self.mSerialPort.RecvPacket()
+            if pkt:
+                skdebug('received a packet', pkt.info_string())
+                raise RobotRecvInvalidData
+            cost_time = time.time()-start_time
+            if(cost_time > float(timeout)):
+                skdebug('timeout cost_time:', cost_time)
+                return
 
     # def RecviveSyn(self, timeout=2):
     #     start_time = time.time()
@@ -448,19 +525,6 @@ class LinkSession(object):
     #         if(cost_time > float(timeout)):
     #             skdebug('timeout cost_time:', cost_time)
     #             raise RobotTimeoutError
-
-    def RecviveNothing(self, timeout=2):
-        start_time = time.time()
-        while True:
-            pkt_bytes = self.mSerialPort.RecvPacket()
-            if pkt_bytes != None:
-                link_pkt_obj = LinkPacket(packet_bytes=pkt_bytes, recv_time=time.time())
-                skdebug('received a packet', link_pkt_obj.info_string())
-                raise RobotRecvInvalidData
-            cost_time = time.time()-start_time
-            if(cost_time > float(timeout)):
-                skdebug('timeout cost_time:', cost_time)
-                return
 
     # def RecviveTestNoNAK(self, timeout=2):
     #     start_time = time.time()

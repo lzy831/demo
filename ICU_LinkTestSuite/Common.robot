@@ -120,7 +120,7 @@ Send_BAD_SOP_PKT
     Library_Send_BAD_PKT_INVALID_SOP
 
 Send_BAD_PL_PKT
-    Library_Send_BAD_PL_PKT
+    Library_Send_BAD_PKT_INVALID_PL_MTA
 
 Send_BAD_PAN_PKT
     Library_Send_BAD_PAN_PKT
@@ -161,10 +161,10 @@ Test_Start
     Library_Test_Start
 
 Test_Send_NoNAK_PKT
-    Library_Test_Send_NoNAK_PKT
+    Library_Send_Test_NoNAK_Pkt
 
 Test_Request_NoNAK_PKT
-    Library_Test_Request_NoNAK_PKT
+    Library_Request_Test_NoNAK_Pkt
 
 
 ##################################################################

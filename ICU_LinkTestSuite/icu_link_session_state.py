@@ -7,6 +7,7 @@ from icu_link_packet import *
 
 
 class SessionState(object):
+
     def __init__(self):
         self.mSendQMaxSize = 1
         self.mRecvQMaxSize = 1
@@ -19,19 +20,17 @@ class SessionState(object):
         self.mRemoteMaxRecvPktLen = 128
         self.mRemoteMaxNumOfOutStdPkts = 4
 
+    def StashRemoteLinkParam(self, max_recv_pkt_len, max_num_of_out_std_pkts):
+        self.mRemoteMaxRecvPktLen = max_recv_pkt_len
+        self.mRemoteMaxNumOfOutStdPkts = max_num_of_out_std_pkts
 
-    def Update(self, param_dict):
-
-        # self.mLocalMaxNumOfOutStdPkts
-        # self.mRemoteMaxNumOfOutStdPkts
-        # self.mRemoteMaxRecvPktLen
-
-
-        self.mLinkVersion = param_dict[LinkSpec.cHFeild_LV]
+    def SynComplete(self, param_dict):
+        self.mNegotiatedLinkVersion = param_dict[LinkSpec.cHFeild_LV]
         self.mNegotiatedRetransTimeout = param_dict[LinkSpec.cHFeild_RT]
         self.mNegotiatedCumAckTimeout = param_dict[LinkSpec.cHFeild_CAT]
         self.mNegotiatedMaxNumOfRetrans = param_dict[LinkSpec.cHFeild_MNOR]
         self.mNegotiatedMaxCumAck = param_dict[LinkSpec.cHFeild_MCA]
+        self.mLocalMaxNumOfOutStdPkts = param_dict[LinkSpec.cHFeild_MNOOSP]
 
         self.mSendQMaxSize = self.mLocalMaxNumOfOutStdPkts
         tmp = collections.deque(maxlen=self.mSendQMaxSize)
@@ -41,7 +40,7 @@ class SessionState(object):
             tmp.append(pkt)
         self.mSendQueue = tmp
 
-        self.mRecvQMaxSize = self.mNegotiatedMaxCumAck
+        self.mRecvQMaxSize = self.mRemoteMaxNumOfOutStdPkts
         tmp = collections.deque(maxlen=self.mRecvQMaxSize)
         while len(self.mRecvQueue) > 0:
             pkt = self.mRecvQueue.popleft()
@@ -70,18 +69,34 @@ class SessionState(object):
         return False
 
     def StashRecvPkt(self, packet: LinkPacket):
+        skdebug('stash recv packet psn:', packet.psn())
         if len(self.mRecvQueue) == 0 or packet.psn() == self.mRecvQueue[-1].psn()+1:
             self.mRecvQueue.append(packet)
-            qs = ''
-            for p in self.mRecvQueue:
-                qs = qs + str(p.psn())+','
-            skdebug('stash a in seq pkt, size:', len(self.mRecvQueue), '/', self.mRecvQueue.maxlen, ' > ', qs)
+
+            need_continue = True
+            while need_continue:
+                if len(self.mRecvOutSeqQueue) > 0:
+                    # skdebug('test move psn:', self.mRecvOutSeqQueue[0].psn())
+                    if self.mRecvOutSeqQueue[0].psn() == self.mRecvQueue[-1].psn()+1:
+                        # skdebug('need to move')
+                        self.mRecvQueue.append(self.mRecvOutSeqQueue[0])
+                        self.mRecvOutSeqQueue.popleft()
+                    else:
+                        # skdebug('loop stop')
+                        need_continue = False
+                else:
+                    need_continue = False
         else:
             self.mRecvOutSeqQueue.append(packet)
-            qs = ''
-            for p in self.mRecvOutSeqQueue:
-                qs = qs + str(p.psn())+','
-            skdebug('stash a out seq pkt, size:', len(self.mRecvOutSeqQueue), ' > ', qs)
+
+        qs = ''
+        for p in self.mRecvQueue:
+            qs = qs + str(p.psn())+','
+        skdebug('RecvQueue:', len(self.mRecvQueue), '/', self.mRecvQueue.maxlen, ' > ', qs)
+        qs = ''
+        for p in self.mRecvOutSeqQueue:
+            qs = qs + str(p.psn())+','
+        skdebug('RecvOutSeqQueue:', len(self.mRecvOutSeqQueue), ' > ', qs)
 
     def StashSentPkt(self, packet: LinkPacket):
         # last_pkt:LinkPacket = self.mSendQueue[-1]
@@ -89,7 +104,10 @@ class SessionState(object):
         # new_psn = packet.mHeader.mPacketSeqNum
         # if new_psn == last_psn+1:
         self.mSendQueue.append(packet)
-        skdebug('StashSentPkt len:', len(self.mSendQueue))
+        qs = ''
+        for p in self.mSendQueue:
+            qs = qs + str(p.psn())+','
+        skdebug('StashSentPkt len:', len(self.mSendQueue), ' > ', qs)
 
     def GetRetransmitPkt(self, psn):
         for p in self.mSendQueue:
@@ -111,7 +129,9 @@ class SessionState(object):
         return self.mSentEAK
 
     def GetLastInSequencePSN(self):
-        return self.mRecvQueue[-1].psn()
+        if len(self.mRecvQueue) >0:
+            return self.mRecvQueue[-1].psn()
+        return None
 
     def GetOutSequencePSN(self):
         res = []
@@ -119,12 +139,20 @@ class SessionState(object):
             res.append(p.psn())
         return res
 
-    def GetLastSentPkt(self):
-        return self.mSendQueue[-1]
+    def GetLastPktFromSentQueue(self):
+        if len(self.mSendQueue) > 0:
+            return self.mSendQueue[-1]
+        else:
+            return None
 
-    def GetFistSentPkt(self):
-        return self.mSendQueue[0]
+    def GetPktFromSentQueue(self,index=0):
+        if len(self.mSendQueue) > 0:
+            return self.mSendQueue[index]
+        else:
+            return None
 
     def GetLastRecvPkt(self):
-        skdebug('GetLastRecvPkt mRecvQueue:', self.mRecvQueue)
-        return self.mRecvQueue[-1]
+        if len(self.mRecvQueue) > 0:
+            return self.mRecvQueue[-1]
+        else:
+            return None
