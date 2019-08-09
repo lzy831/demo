@@ -232,35 +232,35 @@ def Library_Send_BAD_PKT_INVALID_SESSION_ID():
     sk_library_api_end()
 
 
-def Library_Send_BAD_PKT_Incorrect_HC():
+def Library_Send_Bad_Pkt_Incorrect_HC():
     sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
     session.SendBadPkt(BadPktType.INCORRECT_HC)
     sk_library_api_end()
 
 
-def Library_Send_BAD_PKT_Incorrect_PC():
+def Library_Send_Bad_Pkt_Incorrect_PC():
     sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
     session.SendBadPkt(BadPktType.INCORRECT_PC)
     sk_library_api_end()
 
 
-def Library_Send_BAD_PKT_SYN_Invalid_Data():
+def Library_Send_Bad_Pkt_SYN_Invalid_Data():
     sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
     session.SendBadPkt(BadPktType.SYN_INVALID_DATA)
     sk_library_api_end()
 
 
-def Library_Send_BAD_PKT_SYN_Invalid_Data_Skip_One_PSN():
+def Library_Send_Bad_Pkt_SYN_Invalid_Data_Skip_One_PSN():
     sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
     session.SendBadPkt(BadPktType.SYN_INVALID_DATA_SKIP_ONE_PSN)
     sk_library_api_end()
 
 
-def Library_Send_BAD_PKT_SYN_ACK_Invalid_Data():
+def Library_Send_Bad_Pkt_SYN_ACK_Invalid_Data():
     sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
     session.SendBadPkt(BadPktType.SYN_ACK_INVALID_DATA)
@@ -274,10 +274,10 @@ def Library_Send_Bad_Pkt_OverLength():
     sk_library_api_end()
 
 
-def Library_Send_BAD_PKT_OVER_MAX_RECV_LEN_TEST_NONAK():
+def Library_Send_Bad_Pkt_Exceed_Remote_MRPL():
     sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
-    session.SendBadPkt(BadPktType.OVER_MAX_RECV_LEN_TEST_NONAK)
+    session.SendBadPkt(BadPktType.TEST_NoNAK_Exceed_Remote_MRPL)
     sk_library_api_end()
 
 
@@ -424,7 +424,7 @@ def Library_Test_Send_NoNAK_PKT_And_Received_ACK_In_LimitTime():
     sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
 
-    sent_pkt = session.TestSendNoNAK()
+    sent_pkt = session.SendTestNoNAK()
     skdebug('send time:', sent_pkt.mSentTime)
 
     recv_pkt = session.ReceiveOneSpecificPacket(type=PacketType.ACK)
@@ -445,7 +445,7 @@ def Library_Send_OutSeq_NoNAK_Pkt_And_Received_EAK_In_LimitTime():
     sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
 
-    sent_pkt = session.TestSendNoNAK(skip_psn=1)
+    sent_pkt = session.SendTestNoNAK(skip_psn=1)
     skdebug('send time:', sent_pkt.mSentTime)
 
     recv_pkt = session.ReceiveOneSpecificPacket(type=PacketType.EAK)
@@ -466,7 +466,7 @@ def Library_Send_NoNAK_Pkt_And_Received_EAK_In_LimitTime():
     sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
 
-    sent_pkt = session.TestSendNoNAK()
+    sent_pkt = session.SendTestNoNAK()
     skdebug('send time:', sent_pkt.mSentTime)
 
     recv_pkt = session.ReceiveOneSpecificPacket(type=PacketType.EAK)
@@ -565,7 +565,7 @@ def Library_Test_Start():
 def Library_Send_Test_NoNAK_Pkt():
     sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
-    session.TestSendNoNAK()
+    session.SendTestNoNAK()
     sk_library_api_end()
 
 
@@ -587,14 +587,26 @@ def Library_Send_Test_Missing_NoNAK_Pkt_According_EAK():
     ekap = LinkEAKPayload(pan=pkt.pan(), payload_bytes=pkt.mPayloadBytes)
     l = ekap.get_missing_psn_list()
     skdebug('missing psn list:', l)
-    session.TestSendRetransmitNoNAK(psn_list=l)
+    session.RetransmitNoNAK(psn_list=l)
+    sk_library_api_end()
+
+
+def Library_Retransmit_First_NoNAK_Pkt_According_EAK_With_Incorrect_PAN():
+    sk_library_api_begin()
+    session: LinkSession = LinkSession.GetInstance()
+    pkt: LinkPacket = session.GetRecvEAKPkt()
+    ekap = LinkEAKPayload(pan=pkt.pan(), payload_bytes=pkt.mPayloadBytes)
+    mlist = ekap.get_missing_psn_list()
+    pan = session.mState.GetInvalidPAN()
+    skdebug('psn:', mlist[0], 'pan:', pan)
+    session.RetransmitNoNAK(psn=mlist[0], pan=pan)
     sk_library_api_end()
 
 
 def Library_Send_Test_NoNAK_Pkt_Skip_One_PSN():
     sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
-    session.TestSendNoNAK(skip_psn=1)
+    session.SendTestNoNAK(skip_psn=1)
     sk_library_api_end()
 
 
@@ -615,7 +627,7 @@ def Library_Send_Test_MNOOSP_NoNAK_PKT():
     skdebug('LocalMaxNumOfOutStdPkts:', session.mState.mLocalMaxNumOfOutStdPkts)
     for i in range(1, session.mState.mLocalMaxNumOfOutStdPkts):
         skdebug('TestSendNoNAK send ndx:', i)
-        session.TestSendNoNAK()
+        session.SendTestNoNAK()
     sk_library_api_end()
 
 
@@ -623,15 +635,15 @@ def Library_Send_Test_MNOOSP_NoNAK_Pkt_Skip_One_PSN():
     sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
     skdebug('LocalMaxNumOfOutStdPkts:', session.mState.mLocalMaxNumOfOutStdPkts)
-    session.TestSendNoNAK()
+    session.SendTestNoNAK()
     skip_psn_flag = 1
     for i in range(1, session.mState.mLocalMaxNumOfOutStdPkts-1):
         skdebug('TestSendNoNAK send ndx:', i)
         if skip_psn_flag == 1:
-            session.TestSendNoNAK(skip_psn=1)
+            session.SendTestNoNAK(skip_psn=1)
             skip_psn_flag = 0
         else:
-            session.TestSendNoNAK()
+            session.SendTestNoNAK()
     sk_library_api_end()
 
 
@@ -641,7 +653,7 @@ def Library_Test_Send_MCA_NoNAK_PKT():
     skdebug('MaxCumAck:', session.mMaxCumAck)
     for i in range(0, session.mMaxCumAck):
         skdebug('TestSendNoNAK send ndx:', i)
-        session.TestSendNoNAK()
+        session.SendTestNoNAK()
     sk_library_api_end()
 
 ##############################################################################################################
@@ -652,43 +664,67 @@ def Library_Test_Send_MCA_NoNAK_PKT():
 def Library_Request_Test_NoNAK_Pkt():
     sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
-    session.TestRequestNoNAK()
+    session.RequestTestNoNAK()
     sk_library_api_end()
 
 
 def Library_Request_Two_Test_NoNAK_Pkt():
     sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
-    session.TestRequestNoNAK(count=2)
+    session.RequestTestNoNAK(count=2)
     sk_library_api_end()
 
 
 def Library_Request_Three_Test_NoNAK_Pkt():
     sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
-    session.TestRequestNoNAK(count=3)
+    session.RequestTestNoNAK(count=3)
     sk_library_api_end()
 
 
 def Library_Request_MaxCumAckCount_Test_NoNAK_Pkt():
     sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
-    session.TestRequestNoNAK(count=session.mState.mNegotiatedMaxCumAck)
+    session.RequestTestNoNAK(count=session.mState.mNegotiatedMaxCumAck)
     sk_library_api_end()
 
 
 def Library_Request_MaxOutOfStdPkt_Add_Two_Test_NoNAK_Pkt():
     sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
-    session.TestRequestNoNAK(count=session.mState.mRemoteMaxNumOfOutStdPkts+2)
+    session.RequestTestNoNAK(count=session.mState.mRemoteMaxNumOfOutStdPkts+2)
     sk_library_api_end()
 
 
 def Library_Request_Test_NoNAK_Pkt_Skip_One_PSN():
     sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
-    session.TestRequestNoNAK(count=1, skip_psn=1)
+    session.RequestTestNoNAK(count=1, skip_psn=1)
     sk_library_api_end()
+
+
+def Library_Request_Test_NoNAK_Pkt_Exceed_Self_MRPL():
+    sk_library_api_begin()
+    session: LinkSession = LinkSession.GetInstance()
+    # payload data 达到MRPL, 则packet总长超长
+    session.RequestTestNoNAK(count=1, max_size=session.mState.mLocalMaxRecvPktLen)
+    sk_library_api_end()
+
+
+def Library_Request_Test_NoNAK_Pkt_ContainTenBytesPD():
+    sk_library_api_begin()
+    session: LinkSession = LinkSession.GetInstance()
+    session.RequestTestNoNAK(count=1, max_size=10)
+    sk_library_api_end()
+
+def Library_Request_Test_NoNAK_Pkt_ContainFiveBytesPD_Repeat_PSN():
+    sk_library_api_begin()
+    session: LinkSession = LinkSession.GetInstance()
+    psn = session.mState.GetPrevSentPSN()
+    skdebug('previous psn:', psn)
+    session.RequestTestNoNAK(count=1, max_size=5, psn=psn)
+    sk_library_api_end()
+
 
 ##############################################################################################################
 # 接收测试NoNAK数据包
@@ -735,7 +771,7 @@ def Library_Received_MaxOutOfStdPkt_Test_NoNAK_And_Drop_First():
     sk_library_api_end()
 
 
-def Library_Received_Twice_Test_NoNAK_ACK_In_LimitTime():
+def Library_Received_Two_Test_NoNAK_ACK_In_LimitRT():
     sk_library_api_begin()
     session: LinkSession = LinkSession.GetInstance()
     first_pkt = session.ReceiveOneSpecificPacket(type=PacketType.NoNAK)
@@ -747,6 +783,14 @@ def Library_Received_Twice_Test_NoNAK_ACK_In_LimitTime():
     limit = session.mRetransTimeout*1.1
     skdebug('limit:', limit)
     if(diff_time > limit):
+        raise RobotTestFlowException
+    sk_library_api_end()
+
+def Library_Received_Test_NoNAK_ContainTenBytesPD():
+    sk_library_api_begin()
+    session: LinkSession = LinkSession.GetInstance()
+    pkt = session.ReceiveOneSpecificPacket(type=PacketType.NoNAK)
+    if pkt.pktlen() != 10+2+10:
         raise RobotTestFlowException
     sk_library_api_end()
 

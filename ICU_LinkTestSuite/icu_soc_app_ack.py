@@ -253,7 +253,7 @@ def SoC_APP_ACK_IE017():
     Library_Test_Start()
     Library_Send_Test_NoNAK_Pkt()
     Library_Received_ACK_In_Time()
-    Library_Send_BAD_PKT_Incorrect_HC()
+    Library_Send_Bad_Pkt_Incorrect_HC()
     Library_Received_Nothing_In_Time()
 
 
@@ -262,7 +262,7 @@ def SoC_APP_ACK_IE018():
     Library_Test_Start()
     Library_Request_Test_NoNAK_Pkt()
     Library_Received_Test_NoNAK_ACK()
-    Library_Send_BAD_PKT_Incorrect_HC()
+    Library_Send_Bad_Pkt_Incorrect_HC()
     Library_Received_Test_NoNAK_ACK()
     Library_Send_ACK()
     Library_Received_Nothing_In_Time()
@@ -273,7 +273,7 @@ def SoC_APP_ACK_IE021():
     Library_Test_Start()
     Library_Send_Test_NoNAK_Pkt()
     Library_Received_ACK_In_Time()
-    Library_Send_BAD_PKT_Incorrect_PC()
+    Library_Send_Bad_Pkt_Incorrect_PC()
     Library_Received_Nothing_In_Time()
 
 
@@ -282,7 +282,7 @@ def SoC_APP_ACK_IE022():
     Library_Test_Start()
     Library_Request_Test_NoNAK_Pkt()
     Library_Received_Test_NoNAK_ACK()
-    Library_Send_BAD_PKT_Incorrect_PC()
+    Library_Send_Bad_Pkt_Incorrect_PC()
     Library_Received_Test_NoNAK_ACK()
     Library_Send_ACK()
     Library_Received_Nothing_In_Time()
@@ -293,7 +293,7 @@ def SoC_APP_ACK_IE023():
     Library_Test_Start()
     Library_Send_Test_NoNAK_Pkt()
     Library_Received_ACK_In_Time()
-    Library_Send_BAD_PKT_SYN_Invalid_Data()
+    Library_Send_Bad_Pkt_SYN_Invalid_Data()
     Library_Received_Nothing_In_Time()
 
 
@@ -301,7 +301,7 @@ def SoC_APP_ACK_IE023():
 def SoC_APP_ACK_FC001():
     Library_MCU_SYN()
     Library_Test_Start()
-    Library_Send_BAD_PKT_OVER_MAX_RECV_LEN_TEST_NONAK()
+    Library_Send_Bad_Pkt_Exceed_Remote_MRPL()
     Library_Received_Nothing_In_Time()
 
 
@@ -329,7 +329,7 @@ def SoC_APP_ACK_FC004():
     Library_MCU_SYN()
     Library_Test_Start()
     Library_Request_Test_NoNAK_Pkt()
-    Library_Received_Twice_Test_NoNAK_ACK_In_LimitTime()
+    Library_Received_Two_Test_NoNAK_ACK_In_LimitRT()
     Library_Send_ACK()
     Library_Received_Nothing_In_Time()
 

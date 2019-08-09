@@ -35,7 +35,7 @@ class BadPktType(Enum):
     INCORRECT_HC = 10  # HeaderChecksum字段不正确的数据包
     INCORRECT_PC = 11  # PayloadChecksum字段不正确的数据包
     SYN_INVALID_DATA = 12  # 携带非法字段的SYN包
-    OVER_MAX_RECV_LEN_TEST_NONAK = 13  # 超过最大处理长度的测试数据包
+    TEST_NoNAK_Exceed_Remote_MRPL = 13  # 超过最大处理长度的测试数据包
     INVALID_CB = 14
     EAK_INVALID_PL_MORE_THEN_ACTUAL = 15
     EAK_INVALID_PL_LESS_THEN_ACTUAL = 16
@@ -183,8 +183,15 @@ class LinkPacket(object):
     def psn(self):
         return self.mHeader.mPacketSeqNum
 
-    def pan(self):
-        return self.mHeader.mPacketAckNum
+    def pan(self, pan=None):
+        if pan:
+            self.mHeader.mPacketAckNum = pan
+            self.mHeader.update_checksum()
+        else:
+            return self.mHeader.mPacketAckNum
+
+    def pktlen(self):
+        return self.mHeader.mPacketLength
 
     def max_cum_ack(self):
         return self
@@ -417,8 +424,8 @@ class LinkPacket(object):
             })
             lsp_bytes = LinkPacket.gen_random_payload()
             return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=lsp_bytes)
-        elif type == BadPktType.OVER_MAX_RECV_LEN_TEST_NONAK:
-            skdebug('OVER_MAX_RECV_LEN_TEST_NONAK')
+        elif type == BadPktType.TEST_NoNAK_Exceed_Remote_MRPL:
+            skdebug('TEST_NoNAK_Exceed_Remote_MRPL')
             header = LinkPacketHeader(header_dict={
                 LinkSpec.cHFeild_SI: LinkSpec.cSessionID_TestSession,
                 LinkSpec.cHFeild_PSN: param_dict[LinkSpec.cHFeild_PSN],
@@ -474,7 +481,7 @@ class LinkPacket(object):
 
 
 
-    def gen_test_packet(type, req_pkt_count=1, param_dict: dict = None):
+    def gen_test_packet(type, req_pkt_count=1, req_pkt_maxsize=32, param_dict: dict = None):
         if type == TestPktType.TEST_START:
             skdebug('TEST_START')
             header = LinkPacketHeader(header_dict={
@@ -497,7 +504,7 @@ class LinkPacket(object):
                 LinkSpec.cHFeild_SI: LinkSpec.cSessionID_TestSession,
                 LinkSpec.cHFeild_PSN: param_dict[LinkSpec.cHFeild_PSN]
             })
-            pl_bytes = LinkPacket.gen_test_request_data_payload(count=req_pkt_count)
+            pl_bytes = LinkPacket.gen_test_request_data_payload(count=req_pkt_count, maxsize=req_pkt_maxsize)
             skdebug('pl_bytes:', pl_bytes.hex())
             return LinkPacket(header_bytes=header.to_bytes(), payload_bytes=pl_bytes)
 

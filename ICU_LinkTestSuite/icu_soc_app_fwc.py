@@ -22,6 +22,7 @@ def SoC_APP_FWC_N001():
     Library_Received_ACK_In_Time()
     Library_Received_Nothing_In_Time()
 
+
 def SoC_APP_FWC_N002():
     Library_MCU_SYN()
     Library_Test_Start()
@@ -43,6 +44,7 @@ def SoC_APP_FWC_N003():
     Library_Send_Test_Missing_NoNAK_Pkt_According_EAK()
     Library_Received_ACK_In_Time()
     Library_Received_Nothing_In_Time()
+
 
 def SoC_APP_FWC_N004():
     Library_MCU_SYN()
@@ -67,6 +69,8 @@ def SoC_APP_FWC_N005():
     Library_Send_ACK()
 
 ##############################################################################################################
+
+
 def SoC_APP_FWC_I001():
     Library_MCU_SYN()
     Library_Test_Start()
@@ -75,6 +79,7 @@ def SoC_APP_FWC_I001():
     Library_Send_SYN()
     Library_Send_Test_Missing_NoNAK_Pkt_According_EAK()
     Library_Received_ACK_In_Time()
+
 
 def SoC_APP_FWC_I002():
     Library_MCU_SYN()
@@ -85,6 +90,7 @@ def SoC_APP_FWC_I002():
     Library_Send_Test_Missing_NoNAK_Pkt_According_EAK()
     Library_Received_ACK_In_Time()
 
+
 def SoC_APP_FWC_I003():
     Library_MCU_SYN()
     Library_Test_Start()
@@ -93,6 +99,7 @@ def SoC_APP_FWC_I003():
     Library_Send_ACK()
     Library_Send_Test_Missing_NoNAK_Pkt_According_EAK()
     Library_Received_ACK_In_Time()
+
 
 def SoC_APP_FWC_I004():
     Library_MCU_SYN()
@@ -116,6 +123,8 @@ def SoC_APP_FWC_I005():
     Library_Received_Nothing_In_Time()
 
 ##############################################################################################################
+
+
 def SoC_APP_FWC_IE001():
     Library_MCU_SYN()
     Library_Test_Start()
@@ -124,6 +133,7 @@ def SoC_APP_FWC_IE001():
     Library_Send_BAD_PKT_INVALID_SOP()
     Library_Send_Test_Missing_NoNAK_Pkt_According_EAK()
     Library_Received_ACK_In_Time()
+
 
 def SoC_APP_FWC_IE002():
     Library_MCU_SYN()
@@ -154,7 +164,18 @@ def SoC_APP_FWC_IE004():
     Library_Send_Test_Missing_NoNAK_Pkt_According_EAK()
     Library_Received_ACK_In_Time()
 
+
 def SoC_APP_FWC_IE005():
+    Library_MCU_SYN()
+    Library_Test_Start()
+    Library_Send_Test_MNOOSP_NoNAK_Pkt_Skip_One_PSN()
+    Library_Received_EAK_In_Time()
+    Library_Send_BAD_PKT_INVALID_PL_MTA()
+    Library_Send_Test_Missing_NoNAK_Pkt_According_EAK()
+    Library_Received_ACK_In_Time()
+
+
+def SoC_APP_FWC_IE006():
     Library_MCU_SYN()
     Library_Test_Start()
     Library_Send_Test_MNOOSP_NoNAK_Pkt_Skip_One_PSN()
@@ -162,7 +183,106 @@ def SoC_APP_FWC_IE005():
     Library_Send_BAD_PKT_PSN_OUT_OF_RECV_WIN()
     Library_Send_Test_Missing_NoNAK_Pkt_According_EAK()
     Library_Received_ACK_In_Time()
+
+
+def SoC_APP_FWC_IE007():
+    Library_MCU_SYN()
+    Library_Test_Start()
+    Library_Send_Test_MNOOSP_NoNAK_Pkt_Skip_One_PSN()
+    Library_Received_EAK_In_Time()
+    Library_Retransmit_First_NoNAK_Pkt_According_EAK_With_Incorrect_PAN()
+    Library_Received_ACK_In_Time()
+
+
+def SoC_APP_FWC_IE008():
+    Library_MCU_SYN()
+    Library_Test_Start()
+    Library_Send_Test_MNOOSP_NoNAK_Pkt_Skip_One_PSN()
+    Library_Received_EAK_In_Time()
+    Library_Send_BAD_PKT_INVALID_SESSION_ID()
+    Library_Send_Test_Missing_NoNAK_Pkt_According_EAK()
+    Library_Received_ACK_In_Time()
+
+
+def SoC_APP_FWC_IE009():
+    Library_MCU_SYN()
+    Library_Test_Start()
+    Library_Send_Test_MNOOSP_NoNAK_Pkt_Skip_One_PSN()
+    Library_Received_EAK_In_Time()
+    Library_Send_Bad_Pkt_Incorrect_HC()
+    Library_Send_Test_Missing_NoNAK_Pkt_According_EAK()
+    Library_Received_ACK_In_Time()
+
+
+def SoC_APP_FWC_IE010():
+    Library_MCU_SYN()
+    Library_Test_Start()
+    Library_Send_Test_MNOOSP_NoNAK_Pkt_Skip_One_PSN()
+    Library_Received_EAK_In_Time()
+    Library_Send_Bad_Pkt_Incorrect_PC()
+    Library_Send_Test_Missing_NoNAK_Pkt_According_EAK()
+    Library_Received_ACK_In_Time()
+
+
+def SoC_APP_FWC_IE011():
+    Library_MCU_SYN()
+    Library_Test_Start()
+    Library_Send_Test_MNOOSP_NoNAK_Pkt_Skip_One_PSN()
+    Library_Received_EAK_In_Time()
+    Library_Send_Bad_Pkt_SYN_Invalid_Data()
+    Library_Send_Test_Missing_NoNAK_Pkt_According_EAK()
+    Library_Received_ACK_In_Time()
+
+
+def SoC_APP_FWC_IE012():
+    Library_MCU_SYN()
+    Library_Test_Start()
+    Library_Send_Test_MNOOSP_NoNAK_Pkt_Skip_One_PSN()
+    Library_Received_EAK_In_Time()
+    Library_Send_Bad_Pkt_SYN_ACK_Invalid_Data()
+    Library_Send_Test_Missing_NoNAK_Pkt_According_EAK()
+    Library_Received_ACK_In_Time()
 ##############################################################################################################
+
+
+def SoC_APP_FWC_FC001():
+    Library_MCU_SYN()
+    Library_Test_Start()
+    Library_Request_Test_NoNAK_Pkt_Exceed_Self_MRPL()
+    Library_Received_ACK_In_Time()
+    Library_Received_Nothing_In_Time()
+
+
+def SoC_APP_FWC_FC002():
+    Library_MCU_SYN()
+    Library_Test_Start()
+    Library_Send_Bad_Pkt_Exceed_Remote_MRPL()
+    Library_Received_Nothing_In_Time()
+
+
+def SoC_APP_FWC_FC003():
+    Library_MCU_SYN()
+    Library_Test_Start()
+    Library_Send_Test_MNOOSP_NoNAK_Pkt_Skip_One_PSN()
+    Library_Received_EAK_In_Time()
+    Library_Send_Bad_Pkt_Exceed_Remote_MRPL()
+    Library_Send_Test_Missing_NoNAK_Pkt_According_EAK()
+    Library_Received_ACK_In_Time()
+    Library_Received_Nothing_In_Time()
+
+
+def SoC_APP_FWC_FC004():
+    Library_MCU_SYN()
+    Library_Test_Start()
+    Library_Request_Test_NoNAK_Pkt_ContainTenBytesPD()
+    Library_Request_Test_NoNAK_Pkt_ContainFiveBytesPD_Repeat_PSN()
+    Library_Received_ACK_In_Time()
+    Library_Received_Test_NoNAK_ContainTenBytesPD()
+    Library_Received_Nothing_In_Time()
+
+##############################################################################################################
+
+
 def SoC_APP_FWC_TEST():
     sk_api_begin()
     try:
@@ -185,7 +305,19 @@ def SoC_APP_FWC_TEST():
         # SoC_APP_FWC_IE002()
         # SoC_APP_FWC_IE003()
         # SoC_APP_FWC_IE004()
-        SoC_APP_FWC_IE005()
+        # SoC_APP_FWC_IE005()
+        # SoC_APP_FWC_IE006()
+        # SoC_APP_FWC_IE007()
+        # SoC_APP_FWC_IE008()
+        # SoC_APP_FWC_IE009()
+        # SoC_APP_FWC_IE010()
+        # SoC_APP_FWC_IE011()
+        # SoC_APP_FWC_IE012()
+        ###############################
+        # SoC_APP_FWC_FC001()
+        # SoC_APP_FWC_FC002()
+        # SoC_APP_FWC_FC003()
+        SoC_APP_FWC_FC004()
         ###############################
         Library_Close_Transport()
     except BaseException as e:

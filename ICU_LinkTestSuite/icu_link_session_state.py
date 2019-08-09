@@ -30,7 +30,9 @@ class SessionState(object):
         self.mNegotiatedCumAckTimeout = param_dict[LinkSpec.cHFeild_CAT]
         self.mNegotiatedMaxNumOfRetrans = param_dict[LinkSpec.cHFeild_MNOR]
         self.mNegotiatedMaxCumAck = param_dict[LinkSpec.cHFeild_MCA]
+
         self.mLocalMaxNumOfOutStdPkts = param_dict[LinkSpec.cHFeild_MNOOSP]
+        self.mLocalMaxRecvPktLen = param_dict[LinkSpec.cHFeild_MRPL]
 
         self.mSendQMaxSize = self.mLocalMaxNumOfOutStdPkts
         tmp = collections.deque(maxlen=self.mSendQMaxSize)
@@ -67,6 +69,10 @@ class SessionState(object):
                 return True
         skdebug('IsValidPan, not a valid pan', pan)
         return False
+
+    def GetInvalidPAN(self):
+        rvalue = random.randint(10, 100)
+        return self.mRecvQueue[-1].psn() + rvalue % 256
 
     def StashRecvPkt(self, packet: LinkPacket):
         skdebug('stash recv packet psn:', packet.psn())
@@ -129,7 +135,7 @@ class SessionState(object):
         return self.mSentEAK
 
     def GetLastInSequencePSN(self):
-        if len(self.mRecvQueue) >0:
+        if len(self.mRecvQueue) > 0:
             return self.mRecvQueue[-1].psn()
         return None
 
@@ -145,9 +151,15 @@ class SessionState(object):
         else:
             return None
 
-    def GetPktFromSentQueue(self,index=0):
+    def GetPktFromSentQueue(self, index=0):
         if len(self.mSendQueue) > 0:
             return self.mSendQueue[index]
+        else:
+            return None
+
+    def GetPrevSentPSN(self):
+        if len(self.mSendQueue) > 0:
+            return self.mSendQueue[-1].psn()
         else:
             return None
 
