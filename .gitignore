@@ -1,3 +1,5 @@
 
 *.~vsdx
 ICU_LinkTestSuite/~$链路层测试用例_v1.0.0.xlsx
+TestData
+build

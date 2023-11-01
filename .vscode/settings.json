@@ -1,0 +1,4 @@
+{
+  "cmake.sourceDirectory": "/home/lzy/Develop/Sources/demo/fdk_aac_decode_raw",
+  "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
+}
